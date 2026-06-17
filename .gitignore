@@ -1,0 +1,72 @@
+# ── Secrets & env (NEVER commit) ──────────────────────────────
+.env
+.env.local
+.env.*.local
+secrets/
+*.p8
+*.p12
+*.pem
+*.key
+
+# ── Node / Vercel ─────────────────────────────────────────────
+node_modules/
+.next/
+.vercel/
+out/
+dist/
+build/
+*.tsbuildinfo
+.npm/
+.pnpm-store/
+
+# ── iOS / Xcode ───────────────────────────────────────────────
+build/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcuserstate
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.xcscmblueprint
+.DS_Store
+Pods/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# ── Swift Package Manager ─────────────────────────────────────
+.swiftpm/
+.build/
+Package.resolved
+
+# ── Misc ──────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+.idea/
+.vscode/settings.json
+coverage/
+.nyc_output/
+
+# ── Local SQLite (offline queue, dev DBs) ─────────────────────
+*.sqlite
+*.sqlite-journal
+*.db
+
+# ── TestFlight / build artifacts ──────────────────────────────
+*.cer
+*.mobileprovision
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
