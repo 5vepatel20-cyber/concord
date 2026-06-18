@@ -1,681 +1,511 @@
-# Medora — Product & Engineering Specification
+# Concord — Master Specification
 
-**Version:** 1.0 (master spec)
-**Last updated:** 2026-06-15
-**Status:** Planning — supersedes hackathon scope
-**Owner:** sansar
+**Version:** 2.0 · **Updated:** 2026-06-17 · **Status:** Planning (pre-build)
+**This is the single source of truth.** It consolidates and supersedes the earlier `SPEC.md`
+(Medora-named) and folds in `BRAND.md` (brand) and `MEDORA_API_SETUP_PROMPT.md` (provisioning), which
+remain as operational companions.
 
-> The thing Medora does — structured patient-reported symptoms that reach the care team — is the
-> thing proven in JAMA (Basch 2017) to extend cancer survival ~5 months and cut ER visits. This spec
-> turns the hackathon demo into that clinically-grounded, reimbursable product.
-
----
-
-## 0. How to read this document
-
-This is a **feature- and function-level specification** of everything required to take Medora from
-hackathon prototype to a real product. It is organized as:
-
-1. **Strategy recap & the system we're building** (§1)
-2. **Target architecture** — the structural shift required (§2)
-3. **Complete data model** — every entity & schema, including the PRO-CTCAE clinical core (§3)
-4. **Feature specs by epic** — each with user stories, functional requirements, screens,
-   functions/services to build, data touched, and acceptance criteria (§4–§13)
-5. **Clinician/provider product** (§14)
-6. **AI/ML system** (§15)
-7. **Security, privacy, HIPAA compliance** (§16)
-8. **Infrastructure & DevOps** (§17)
-9. **Reuse map** — keep / refactor / replace against the current codebase (§18)
-10. **Phased roadmap** — what ships when (§19)
-11. **Open decisions** (§20)
-
-Each feature carries a stable ID (e.g. `SYM-03`) so it can be referenced in issues/PRs.
-Priority tags: **P0** (Phase-1 MVP), **P1** (Phase-1 nice-to-have), **P2** (Phase-2 provider),
-**P3** (Phase-3 platform).
+> **Concord** is a clinical-grade companion for people in serious illness. It captures symptoms
+> thoroughly, turns them into doctor-ready intelligence, and suggests evidence-based habits to support
+> treatment. The thing it does — structured patient-reported symptoms that reach the care team — is the
+> thing proven in JAMA (Basch 2017) to extend cancer survival ~5 months and cut ER visits.
 
 ---
 
-## 1. Strategy recap & the system we're building
+## Table of contents
+1. Executive summary
+2. The thesis — why this works (evidence, regulation, market, competition)
+3. Strategy — beachhead & 3-phase business model
+4. Brand & visual system (Concord / Atlas)
+5. Product architecture
+6. Tech stack & services — full bill of materials
+7. Complete data model
+8. Feature specs by epic
+9. Atlas — the AI system
+10. Security, privacy & HIPAA
+11. Infrastructure & CI/CD
+12. Reuse map — Swift → Flutter
+13. Phased roadmap
+14. Decisions — locked & open
+15. Appendix
 
-**Reframe:** Medora is not a symptom tracker (a feature). It is the **patient↔clinician
-communication layer for serious illness** (a reimbursable system).
+Priority tags: **P0** (Phase-1 MVP) · **P1** (Phase-1 nice-to-have) · **P2** (Phase-2 provider) ·
+**P3** (Phase-3 platform). Feature IDs (e.g. `SYM-03`) are stable for issues/PRs.
 
-**Beachhead (LOCKED):** **any patient on active chemotherapy**, across the 7 EOM cancer types
-(breast, chronic leukemia, small intestine/colorectal, lung, lymphoma, multiple myeloma, prostate).
-Broader top-of-funnel than a single tumor type; the symptom panel is the shared chemo-toxicity core
-(PRO-CTCAE) with condition tweaks. Expand to broader chronic illness later.
+---
+
+## 1. Executive summary
+
+Concord (formerly Medora) is an iOS-first **Flutter** app + a **Node/TS** backend that helps patients
+on active cancer treatment log symptoms in a clinically valid way, share a scannable report with their
+oncologist, decode confusing medical documents, and get evidence-based habit guidance from an AI
+companion, **Atlas**. The business monetizes in Phase 2 by turning the patient-reported data into a
+clinician product reimbursed through existing CMS pathways (RTM codes + the Enhancing Oncology Model),
+and in Phase 3 via trial matching and de-identified real-world data.
+
+The hackathon prototype proved the concept but (a) stored symptoms as unstructured free text that never
+reached the report or AI, (b) used a weak on-device model with hardcoded keys, and (c) had a generic
+visual identity. This spec rebuilds it as a clinical-grade, reimbursable, branded product.
+
+---
+
+## 2. The thesis — why this works
+
+**Clinical proof (rare for a health app):** The Basch et al. JAMA 2017 trial randomized 766 metastatic
+cancer patients on chemo; electronic symptom reporting with nurse alerts produced **median survival
+31.2 vs 26.0 months** (~5 months, larger than many drugs), fewer ER visits, better quality of life.
+The Texas Two-Step study replicated the benefit in community oncology. *The core action Concord
+enables is the action proven to extend life.*
+
+**Regulatory tailwinds:**
+- **CMS Enhancing Oncology Model (EOM)** *requires* participating oncology practices to collect
+  electronic patient-reported outcomes (ePROs) and pays them ~$110/beneficiary/month.
+- **Remote Therapeutic Monitoring (RTM)** CPT codes 98975/98980/98981 reimburse ~$20 setup +
+  ~$50/patient/month for monitoring patient-reported data.
+
+**Market:** ePRO market ~$950M (2024) → ~$2.2–2.9B by 2030–31 (~15% CAGR), oncology the largest
+segment. Adjacent caregiver-app market $1.4B → $3.7B.
+
+**Competitive white space:** consumer trackers (Bearable, Guava) are loved but don't monetize or reach
+the doctor; clinical ePRO platforms (Navigating Cancer, Noona, Thyme Care $1B) make money but sell
+enterprise into EHRs. **Nobody owns the patient-loved + clinician-grade + reimbursable bridge.** That's
+Concord.
+
+---
+
+## 3. Strategy
+
+**Beachhead (LOCKED):** any patient on **active chemotherapy** across the 7 EOM cancer types (breast,
+chronic leukemia, small-intestine/colorectal, lung, lymphoma, multiple myeloma, prostate). Shared
+PRO-CTCAE chemo-toxicity symptom panel with condition tweaks. Expand to broader chronic illness later.
 
 **Three-phase business:**
-- **Phase 1 (0–6 mo):** Own the patient. Free app. Best-in-class structured symptom logging +
-  doctor-ready visit report + decode-my-documents. Win one oncologist champion.
-- **Phase 2 (6–18 mo):** Bill the provider. Clinician dashboard + alerting. Monetize via RTM CPT
-  codes (~$50/patient/mo) and CMS Enhancing Oncology Model ePRO mandate.
-- **Phase 3 (18 mo+):** Sell the insight. Trial matching (already have ClinicalTrials.gov) +
-  de-identified real-world data for pharma.
+- **Phase 1 (0–6 mo) — Own the patient.** Free app. Best-in-class structured symptom logging +
+  doctor-ready report + decode-my-documents. Win one oncologist champion. *No revenue; buying trust,
+  data, distribution.*
+- **Phase 2 (6–18 mo) — Bill the provider.** Clinician dashboard + alerting. Monetize via RTM
+  (~$50/patient/mo) and EOM ePRO compliance.
+- **Phase 3 (18 mo+) — Sell the insight.** Trial matching (ClinicalTrials.gov already integrated) +
+  de-identified real-world data for pharma (the Outcomes4Me model).
 
 **Clinical spine:** all symptom capture is built on **PRO-CTCAE** (NCI's validated patient-reported
-adverse-event instrument — the exact one the survival studies used). This is the single change that
-turns "diary" into "clinical-grade."
+adverse-event instrument — the one the survival studies used). This is what makes the data
+clinical-grade and EOM-aligned rather than a diary.
 
 ---
 
-## 2. Target architecture
+## 4. Brand & visual system (Concord / Atlas)
 
-### 2.1 The structural shift
+Full detail in `BRAND.md`; the essentials:
 
-Current: a SwiftUI app that talks **directly** to Supabase and to the Featherless AI API with
-**hardcoded keys**, persisting clinical-ish data in `UserDefaults`. This cannot scale, cannot be
-made HIPAA-compliant, and leaks secrets.
+- **App name:** **Concord** (patient + clinician on one shared source of truth).
+- **AI companion:** **Atlas** (carries the full picture; interprets, flags, suggests habits; never
+  diagnoses/prescribes; defers to the clinician).
+- **Tagline:** *You and your doctor, on the same page.*
+- **Personality:** precise · thorough · trustworthy · a capable instrument, **not** a calm/wellness app.
+  Optimized first for **clinician credibility**.
+- **Direction:** "Clinical Trust", **light-first** (Apple Health / One Medical feel).
+- **Color tokens:** Concord Blue `#1668E0`, Blue Pressed `#0F4FB0`, Blue Tint `#EAF1FD`; Ink `#0F1B2D`,
+  Body `#2B3A4F`, Slate `#5E6B7E`, Hint `#9AA6B6`; Mist `#F4F7FA`, Surface `#FFFFFF`, Hairline
+  `#E2E8F0`; semantic Stable `#16A974`, Caution `#E8A33D`, Warn `#F2683C`, Severe `#E5484D`.
+- **Severity ramp (PRO-CTCAE 0–3):** None `#16A974` → Mild `#E8A33D` → Moderate `#F2683C` → Severe
+  `#E5484D`. Never color-only; always pair with grade label.
+- **Type:** **Inter**, tabular numerals for all clinical data. Scale in BRAND.md.
+- **App icon:** blue rounded tile + white open-"C" arc + pulse tick.
+- **Implementation:** one Flutter `ThemeData` + a design-tokens file; reference everywhere. The
+  doctor-report PDF re-skins to the Concord header.
+- **Naming due-diligence:** "Concord" has unrelated users; `.com` taken → plan `concordhealth.app` /
+  `getconcord.app`; trademark search (Nice class 9/44) before launch. Bundle id TBD `com.concord.app`.
 
-Target: a **thin client + trusted backend** topology.
+---
+
+## 5. Product architecture
+
+**Topology: thin Flutter client + trusted Node backend. No secret ships in the app.**
 
 ```
-┌─────────────────┐     ┌──────────────────────────┐     ┌─────────────────────┐
-│  iOS app        │────▶│  Medora Backend (Node/TS  │────▶│  Postgres (Supabase │
-│  (SwiftUI)      │     │  on Vercel)              │     │  or RDS) + RLS      │
-│  - HealthKit    │◀────│  - auth/session           │     └─────────────────────┘
-│  - local cache  │     │  - PRO-CTCAE scoring      │     ┌─────────────────────┐
-│  - offline queue│     │  - alert engine           │     │  LLM provider        │
-└─────────────────┘     │  - AI proxy (keys server) │────▶│  (Gemini free tier   │
-        │               │  - report renderer (opt)  │     │   build → Claude via │
-        ▼               │  - clinician API          │     │   Vertex/Bedrock w/  │
-┌─────────────────┐     │  - queued report jobs     │     │   BAA pre-Phase-2)   │
-│  Widget / Push  │     └──────────────────────────┘     └─────────────────────┘
-└─────────────────┘              │
-                                 ▼
-                        ┌─────────────────────┐
-                        │  Clinician web app  │
-                        │  (Next.js)          │
-                        └─────────────────────┘
+┌────────────────────────┐      ┌───────────────────────────┐     ┌────────────────────────┐
+│  Flutter app (iOS-first│─────▶│  Concord Backend (Node/TS  │────▶│  Supabase Postgres     │
+│  Android-ready)        │      │  on Vercel serverless)     │     │  + Auth + Storage + RLS│
+│  - HealthKit/Health    │◀─────│  - PRO-CTCAE scoring       │     └────────────────────────┘
+│    Connect via `health`│      │  - alert engine            │     ┌────────────────────────┐
+│  - offline queue       │      │  - AI proxy (keys server)  │────▶│  LLM provider (swappable│
+│  - local notifications │      │  - report assembly         │     │  Gemini free → BAA later│
+└───────────┬────────────┘      │  - clinician API (Phase 2) │     └────────────────────────┘
+            │                   └───────────┬───────────────┘     ┌────────────────────────┐
+   git push │                               │                     │  Clinician web app     │
+            ▼                               └────────────────────▶│  (Next.js, Phase 2)    │
+┌────────────────────────┐                                        └────────────────────────┘
+│ Codemagic cloud-Mac CI │  builds & signs iOS + Android, uploads to TestFlight / Play
+└────────────────────────┘
 ```
 
-### 2.2 Component inventory
+**Client (Flutter/Dart):** chosen because the primary developer works on **Windows** with no daily Mac
+access. Flutter lets him build the whole app on Windows and test on an Android emulator; iOS
+builds/signing/TestFlight run automatically on **Codemagic** (cloud Mac) on git push. The owner's Mac
+is optional backup. Android comes nearly for free if/when wanted. HealthKit access via the `health`
+plugin (also wraps Android Health Connect); rare advanced HealthKit features may need a small native
+Swift shim.
 
-| Component | Tech (proposed) | Why |
+**Backend (Node/TS on Vercel):** holds all secrets, runs PRO-CTCAE scoring + the alert engine, proxies
+the AI. **Serverless constraints baked in:** AI responses **stream** (supported); long report
+generation is a streamed endpoint or a queued job (Inngest/QStash), never a long-lived process.
+Vercel free Hobby tier is non-commercial → Pro (~$20/mo) at commercial launch.
+
+**Database:** Supabase Postgres + Auth + Storage with **Row-Level Security**.
+
+**Cross-cutting principles:** no secret in the binary · offline-first symptom capture · PHI
+minimization (explicit de-id boundary before any Phase-3 data product) · everything clinical is
+structured + coded (free text alongside, never instead).
+
+---
+
+## 6. Tech stack & services — full bill of materials
+
+**Runtime services (the product needs these in prod):**
+
+| Service | Purpose | Provision | Cost (P1) | Phase |
+|---|---|---|---|---|
+| **Google Gemini** (AI Studio) | Atlas chat, report writing, doc decode. 2.5 Flash (~250/day) + 2.5 Pro (~100/day). Free, no card. | You (key) | Free | P1 |
+| **Supabase** | Postgres + Auth + Storage + RLS (project exists) | You (keys) | Free→$25/mo | P1 |
+| **Apple Developer** | HealthKit, push, TestFlight, App Store (**already owned**) | You (keys only) | owned | P1 |
+| **Vercel** | Hosts the Node backend (**already owned**) | You (token) | Free Hobby→$20/mo | P1 |
+| **Codemagic** | Cloud-Mac CI: build/sign iOS+Android, upload to TestFlight/Play | You (connect) | Free tier | P1 |
+| **Resend** | Transactional email (invites, alerts) | You (key) | Free→~$20/mo | P1 |
+| **Sentry** | Backend + app error/crash monitoring | You (DSNs) | Free tier | P1 |
+| **PostHog** | Privacy-first analytics | You (key) | Free tier | P1 |
+| **Domain + DNS** | `api.concord…`, email domain | You | ~$12/yr | P1 |
+| **RxNorm / RxNav** (NLM) | Medication coding | none (public) | Free | P1 |
+| **ClinicalTrials.gov** | Trial search (already integrated) | none (public) | Free | P1 |
+| **HealthKit / Health Connect** | Health metrics (on-device) | via Apple acct | Free | P1 |
+| **Twilio** | SMS urgent caregiver alerts | You | usage | P2 |
+| **Paid AI + BAA** (Vertex/Anthropic/Bedrock) | HIPAA-eligible AI before real PHI | You | usage | P1-exit/P2 |
+| **AWS Textract** | Server-side OCR (P1 uses on-device first) | You | usage | P2 |
+
+**Net:** the user already owns Apple Developer + Vercel, so **no paid signup is required to start** —
+every remaining service has a free, cardless tier. Provisioning runbook: `MEDORA_API_SETUP_PROMPT.md`
+(paste into a fresh agent to be walked through it).
+
+**Build/dev tooling:** Flutter SDK + Dart (Windows), Node 20 + pnpm, Supabase CLI, Vercel CLI, `gh`,
+Codemagic (CI). Optional MCPs to accelerate dev: Supabase MCP, Sentry MCP.
+
+**Critical security action (now):** rotate/delete the exposed Featherless key in
+`Medora/FeatherlessAIClient.swift` (public repo) and the Supabase key in `SupabaseClient.swift`. Both
+leave the binary; the AI moves to the server proxy.
+
+---
+
+## 7. Complete data model
+
+Legend: 🆕 new · ♻️ refactor of existing.
+
+### 7.1 Identity & profile
+- **`user`** ♻️ — id (uuid, Supabase auth), email, full_name, **date_of_birth** (replaces age),
+  sex_at_birth, locale (en/es/fr/de/zh/hi), **role** (`patient`|`caregiver`|`clinician`|`admin`).
+- **`patient_profile`** 🆕 — user_id, primary_diagnosis_id→`condition`, diagnosis_date, cancer_stage,
+  treatment_status (`active_treatment`|`surveillance`|`remission`|`palliative`), height/weight,
+  timezone.
+- **`condition`** 🆕 — controlled vocab: display_name, icd10_code, category
+  (`oncology`|`cardiometabolic`|`autoimmune`|`respiratory`|`mental_health`|`other`), pro_ctcae_panel_id.
+- **`care_relationship`** 🆕 — patient_id, member_user_id, relationship, permissions (jsonb:
+  can_log/can_view_reports/receives_alerts), status (`pending`|`active`|`revoked`).
+
+### 7.2 Clinical core — PRO-CTCAE (the centerpiece) 🆕
+- **`symptom_term`** — PRO-CTCAE item library (~78 terms): pro_ctcae_code, display_name, body_system,
+  attributes (subset of {frequency, severity, interference, presence, amount}), plain_language (per
+  locale).
+- **`symptom_panel`** — condition-specific subset (term_ids[]); don't show 124 items to everyone.
+- **`symptom_report`** ♻️ (replaces `{symptom_text, created_at}`) — patient_id, reported_at,
+  recall_window (`now`|`past_7_days`), source (`self`|`caregiver`|`voice`), free_text, audio_url.
+- **`symptom_response`** 🆕 — report_id, term_id, frequency/severity/interference/presence/amount
+  (0–4), **composite_grade (0–3, derived)**, body_location.
+- **`symptom_alert`** 🆕 — patient_id, report_id, rule_id, severity_level (`info`|`urgent`|`emergency`),
+  status (`open`|`acknowledged`|`resolved`), acknowledged_by, timestamps.
+- **`alert_rule`** 🆕 — term_id, condition (jsonb threshold, e.g. `severity>=3 OR worsened>=2 grades vs
+  7-day baseline`), severity_level, escalation (jsonb).
+
+### 7.3 Medications & adherence
+- **`medication`** ♻️ — rxnorm_code, display_name, dose/unit, route, schedule (jsonb incl. **chemo
+  cycles**), source (`manual`|`healthkit`|`document_extracted`|`clinician`), active.
+- **`medication_event`** 🆕 (replaces boolean done) — medication_id, scheduled_for, status
+  (`taken`|`skipped`|`missed`|`taken_late`), logged_at.
+- **`task`** ♻️ — title, due_at, category (`appointment`|`measurement`|`lifestyle`|`admin`), status,
+  source (`manual`|`ai_proposed`|`clinician`).
+
+### 7.4 Health metrics
+- **`health_metric_sample`** ♻️ (today: live HealthKit, never persisted) — type
+  (steps/sleep/hr/bp_sys/bp_dia/glucose/calories/weight), value/unit, measured_at, source. *Decision:
+  persist **daily aggregates** server-side (not raw) for clinician view + phone-independent reports.*
+
+### 7.5 Documents & reports
+- **`document`** 🆕 — kind (`discharge_summary`|`lab_result`|`imaging`|`visit_note`|`other`),
+  storage_url (encrypted), ocr_text, ai_plain_summary, extracted_values (jsonb labs w/ flags).
+- **`report`** ♻️ — kind (`visit_prep`|`interval_summary`|`shared_with_clinician`), date_range,
+  **structured_payload** (jsonb behind the visual report), narrative (secondary), pdf_url,
+  shared_with[].
+
+### 7.6 Trials
+- **`trial_match`** 🆕 — nct_id, match_score, status (`suggested`|`saved`|`contacted`|`dismissed`).
+
+---
+
+## 8. Feature specs by epic
+
+### 8.1 Onboarding & profile (`ONB`)
+| ID | Pri | Feature |
 |---|---|---|
-| iOS client | SwiftUI (existing) | Keep; refactor data layer |
-| Backend API | **Node/TS on Vercel (LOCKED)** | Serverless functions hold all secrets, run PRO-CTCAE scoring/alerts, proxy AI. Long-running report jobs via queue (Inngest/QStash) — not long-lived processes. Talks to Postgres + AI provider. |
-| Database | Postgres (Supabase) + Row-Level Security | Already in use; formalize schema + RLS |
-| AI gateway | **Build:** server-side proxy to **Google Gemini** (free tier) via AI Studio. **Pre-Phase-2:** swap to **Claude via Vertex AI / AWS Bedrock** behind a BAA. | Move keys off-device; frontier model; swappable provider interface so the swap is a config change. **Free tier has no BAA → only synthetic/test data during build.** |
-| Clinician app | Next.js + the same Postgres (separate RLS role) | Provider dashboard (Phase 2) |
-| Push | APNs (via backend) | Care-team → patient & report alerts |
-| File storage | Supabase Storage / S3 (encrypted) | Uploaded documents, generated PDFs |
-| Analytics | PostHog (self-host or EU) / privacy-first | Engagement without PHI leakage |
+| ONB-01 | P0 | Coded condition selection → loads the right PRO-CTCAE panel (replaces free-text list) |
+| ONB-02 | P0 | Diagnosis detail (date, stage, treatment status, regimen); branches by category |
+| ONB-03 | P0 | Date-of-birth (not age) for reference ranges |
+| ONB-04 | P1 | Care-team invite (promote care partner to `care_relationship`, scoped permissions) |
+| ONB-05 | P1 | Treatment-calendar setup (chemo cycle schedule → aligns check-in prompts) |
+| ONB-06 | P0 | Consent & disclaimers (versioned, "not a medical device" language) |
+| ONB-07 | P0 | HealthKit/Health-Connect permission priming (per-metric rationale) |
 
-### 2.3 Cross-cutting principles
-
-- **No secret ships in the binary.** All third-party API keys live server-side.
-- **Offline-first symptom capture.** A sick patient may have no signal; logging must queue locally
-  and sync. (`OFFLINE-01`)
-- **PHI minimization.** De-identification boundary is explicit and tested before any Phase-3 data
-  product touches it.
-- **Everything clinical is structured + coded.** Free text is allowed *alongside* coded data, never
-  *instead of* it.
-
----
-
-## 3. Complete data model
-
-Legend: 🆕 new · ♻️ refactor of existing · `pk` primary key · `fk` foreign key.
-
-### 3.1 Identity & profile
-
-**`user`** ♻️ (today: Supabase Auth metadata only)
-| field | type | notes |
+### 8.2 Structured symptom logging (`SYM`) — highest priority
+| ID | Pri | Feature |
 |---|---|---|
-| id `pk` | uuid | Supabase auth uid |
-| email | text | |
-| full_name | text | |
-| date_of_birth | date | replaces free `age` int — needed for clinical context |
-| sex_at_birth | enum | clinical relevance for reference ranges |
-| created_at | timestamptz | |
-| locale | text | one of en/es/fr/de/zh/hi (existing) |
-| role | enum | `patient` \| `caregiver` \| `clinician` \| `admin` 🆕 |
+| SYM-01 | P0 | PRO-CTCAE data model + seeded term library |
+| SYM-02 | P0 | Quick-log flow (<30s): panel card stack, frequency/severity/interference chips |
+| SYM-03 | P0 | Daily check-in push aligned to treatment cycle; one-tap deep link |
+| SYM-04 | P0 | Composite grading 0–3 (server fn) |
+| SYM-05 | P0 | Free-text + voice note attached to the structured report (keep speech input) |
+| SYM-06 | P1 | Rolling 7-day baseline + worsening (Δgrade) detection → feeds alerts/report |
+| SYM-07 | P1 | Symptom history: per-symptom sparkline + calendar heatmap |
+| SYM-08 | P1 | Caregiver proxy logging (`source=caregiver`) |
+| SYM-09 | P0 | Offline capture + sync (local queue → backend) |
+| SYM-10 | P1 | Home-screen widget quick-log → structured flow (Flutter `home_widget` + native) |
+| SYM-11 | P2 | Body-map for pain location |
 
-**`patient_profile`** 🆕 (promote out of auth metadata)
-| field | type | notes |
+### 8.3 Alerting & escalation (`ALRT`)
+| ID | Pri | Feature |
 |---|---|---|
-| user_id `pk fk` | uuid | |
-| primary_diagnosis_id `fk` | uuid | → `condition` (coded, not free text) |
-| diagnosis_date | date | |
-| cancer_stage | text | nullable; for oncology cohort |
-| treatment_status | enum | `active_treatment` \| `surveillance` \| `remission` \| `palliative` |
-| height_cm / weight_kg | numeric | for dosing context, BSA |
-| timezone | text | alert scheduling |
+| ALRT-01 | P1 | Rule engine evaluates on each submit → `symptom_alert` |
+| ALRT-02 | P1 | Default oncology rule set (severe diarrhea, uncontrolled pain/nausea, fever-adjacent, SI flags) |
+| ALRT-03 | P0 | Patient-side safety guidance on severe self-report ("call your team / 911 if…") — guidance, not diagnosis |
+| ALRT-04 | P1 | Caregiver notification on urgent alerts (per permissions) |
+| ALRT-05 | P2 | Clinician alert inbox (ack/resolve + audit) |
+| ALRT-06 | P2 | Escalation policy (who/order/timeout) per practice |
 
-**`condition`** 🆕 — controlled vocabulary (seed with EOM cancer types + common chronic)
-| field | type |
-|---|
-| id `pk` | uuid |
-| display_name | text |
-| icd10_code | text |
-| category | enum (`oncology`\|`cardiometabolic`\|`autoimmune`\|`respiratory`\|`mental_health`\|`other`) |
-| pro_ctcae_panel_id `fk` | uuid → which symptom panel applies |
-
-> Migration note: today's `managing: [String]` free-text list (Heart Health, Diabetes, Cancer, …)
-> maps to seeded `condition` rows. Keep an `other_text` escape hatch.
-
-**`care_relationship`** 🆕 (today: care partner buried in auth metadata)
-| field | type | notes |
+### 8.4 Doctor-ready report (`RPT`)
+| ID | Pri | Feature |
 |---|---|---|
-| id `pk` | uuid | |
-| patient_id `fk` | uuid | |
-| member_user_id `fk` | uuid | the caregiver / clinician |
-| relationship | enum | `spouse`\|`child`\|`parent`\|`friend`\|`clinician`\|`care_navigator` |
-| permissions | jsonb | granular: can_log, can_view_reports, receives_alerts |
-| status | enum | `pending`\|`active`\|`revoked` |
+| RPT-01 | P0 | Structured payload: symptom heatmap by day, worst 3 episodes, med adherence %, vitals trends, new/worsening flags |
+| RPT-02 | P0 | **Include symptom data** (fixes the core gap — today the report omits symptoms) |
+| RPT-03 | P0 | Visual one-pager (Concord-skinned PDF/preview) optimized for a 20-second physician glance |
+| RPT-04 | P1 | Short Atlas executive summary grounded in real symptom data |
+| RPT-05 | P1 | Visit-prep mode: "questions to ask" + "what changed since last visit" |
+| RPT-06 | P1 | Share-to-clinician (secure link / portal / email; track `shared_with`) |
+| RPT-07 | P0 | Background generation + completion notification (keep the pattern; serverless-safe) |
+| RPT-08 | P1 | PRO-CTCAE attribution for clinician credibility / EOM alignment |
 
-### 3.2 Clinical core — PRO-CTCAE symptom system 🆕 (the centerpiece)
-
-**`symptom_term`** — the PRO-CTCAE item library (~78 terms / ~124 items)
-| field | type | notes |
+### 8.5 Decode-my-documents (`DOC`)
+| ID | Pri | Feature |
 |---|---|---|
-| id `pk` | uuid | |
-| pro_ctcae_code | text | official NCI item code |
-| display_name | text | e.g. "Nausea" |
-| body_system | enum | GI / neuro / derm / constitutional / psych / pain / etc. |
-| attributes | text[] | subset of {frequency, severity, interference, presence, amount} |
-| plain_language | text | patient-friendly phrasing per locale |
+| DOC-01 | P1 | Capture: scan / photo / PDF / share-sheet import → `document` |
+| DOC-02 | P1 | OCR + structured lab extraction (on-device first; Textract later) |
+| DOC-03 | P1 | Plain-language summary at chosen reading level |
+| DOC-04 | P1 | Abnormal-value flagging (e.g. low ANC during chemo → infection-risk note + guidance) |
+| DOC-05 | P1 | Doc → proposed coded meds/tasks (evolve the existing checklist skill) |
+| DOC-06 | P2 | Doc → suggested questions for the care team |
 
-**`symptom_panel`** — condition-specific subset of terms (don't show 124 items to everyone)
-| field | type |
-|---|
-| id `pk` | uuid |
-| name | text (e.g. "Breast cancer / chemo core panel") |
-| term_ids | uuid[] |
-
-**`symptom_report`** ♻️ (replaces today's `{symptom_text, created_at}`)
-| field | type | notes |
+### 8.6 Atlas — AI companion (`ATLAS`, was AURA)
+| ID | Pri | Feature |
 |---|---|---|
-| id `pk` | uuid | |
-| patient_id `fk` | uuid | |
-| reported_at | timestamptz | |
-| recall_window | enum | `now` \| `past_7_days` (PRO-CTCAE standard) |
-| source | enum | `self` \| `caregiver` \| `voice` |
-| free_text | text | optional narrative (keeps existing UX) |
-| audio_url | text | optional, from voice capture |
+| ATLAS-01 | P0 | Gemini via **server proxy** (swappable provider interface) |
+| ATLAS-02 | P0 | Inject recent graded symptoms + trends into context (today omitted) |
+| ATLAS-03 | P1 | Inject active meds + adherence |
+| ATLAS-04 | P2 | RAG over symptom history / documents / reports |
+| ATLAS-05 | P0 | Safety guardrails (health-only, no diagnosis/prescription, crisis escalation, red-team) |
+| ATLAS-06 | P2 | Citations / sources for clinical info |
+| ATLAS-07 | P1 | Audience/reading-level tone control (keep) |
 
-**`symptom_response`** 🆕 — one row per term per report (the structured payload)
-| field | type | notes |
+### 8.7 Medications & adherence (`MED`)
+| ID | Pri | Feature |
 |---|---|---|
-| id `pk` | uuid | |
-| report_id `fk` | uuid | |
-| term_id `fk` | uuid | |
-| frequency | smallint (0–4) | nullable per term attributes |
-| severity | smallint (0–4) | |
-| interference | smallint (0–4) | |
-| presence | bool | |
-| amount | smallint | |
-| composite_grade | smallint (0–3) | **derived** by scoring fn (`PRO-01`) |
-| body_location | text | nullable (for pain) |
+| MED-01 | P1 | Coded `medication` (RxNorm autocomplete) |
+| MED-02 | P1 | `medication_event` adherence (taken/skipped/missed/late) |
+| MED-03 | P1 | Cyclical chemo schedules (on/off days) |
+| MED-04 | P1 | HealthKit med import → coded meds |
+| MED-05 | P0 | Reminders (local notifications) tied to outcomes |
+| MED-06 | P1 | Adherence % flows into the report |
+| MED-07 | P2 | Side-effect-to-watch notes linked to symptom panel |
 
-**`symptom_alert`** 🆕 — fired when thresholds crossed (the clinical magic)
-| field | type | notes |
+### 8.8 Health metrics (`HK`)
+| ID | Pri | Feature |
 |---|---|---|
-| id `pk` | uuid | |
-| patient_id `fk` | uuid | |
-| report_id `fk` | uuid | |
-| rule_id `fk` | uuid | which threshold rule fired |
-| severity_level | enum | `info`\|`urgent`\|`emergency` |
-| status | enum | `open`\|`acknowledged`\|`resolved` |
-| acknowledged_by `fk` | uuid | clinician/nurse (Phase 2) |
-| created_at / resolved_at | timestamptz | |
+| HK-01 | P0 | Keep `health`-plugin reads (steps/sleep/hr/bp/glucose/calories/meds + 30-day history) |
+| HK-02 | P1 | Persist daily aggregates server-side |
+| HK-03 | P1 | Manual vitals entry (BP cuff, weight, temp) |
+| HK-04 | P2 | Reference-range flagging by age/sex |
+| HK-05 | P3 | Device integrations (Dexcom, BP cuffs, scales) |
 
-**`alert_rule`** 🆕 — configurable thresholds (per panel / per practice in Phase 2)
-| field | type | example |
+### 8.9 Clinical trials (`TRIAL`)
+| ID | Pri | Feature |
 |---|---|---|
-| id `pk` | uuid | |
-| term_id `fk` | uuid | Nausea |
-| condition | jsonb | `severity >= 3 OR (worsened_by >= 2 grades vs 7-day baseline)` |
-| severity_level | enum | `urgent` |
-| escalation | jsonb | who to notify, in what order |
+| TRIAL-01 | P1 | Keep ClinicalTrials.gov search + location filter |
+| TRIAL-02 | P2 | Biomarker-aware matching; persist `trial_match` |
+| TRIAL-03 | P2 | Save / track / contact lifecycle |
+| TRIAL-04 | P3 | Pharma sponsorship hooks |
 
-### 3.3 Medications & adherence
-
-**`medication`** ♻️ (today: free-text checklist tasks + HealthKit import)
-| field | type | notes |
+### 8.10 Caregiver (`CARE`)
+| ID | Pri | Feature |
 |---|---|---|
-| id `pk` | uuid | |
-| patient_id `fk` | uuid | |
-| rxnorm_code | text | coded drug 🆕 (autocomplete from RxNorm) |
-| display_name | text | |
-| dose / unit | text | |
-| route | enum | oral/IV/sub-q/topical |
-| schedule | jsonb | times, days, cyclical (chemo cycles!) |
-| source | enum | `manual`\|`healthkit`\|`document_extracted`\|`clinician` |
-| active | bool | |
+| CARE-01 | P1 | Caregiver accounts + permission scopes |
+| CARE-02 | P1 | Proxy logging & viewing |
+| CARE-03 | P1 | Caregiver alert routing |
+| CARE-04 | P2 | Multi-caregiver task coordination |
 
-**`medication_event`** 🆕 (replaces boolean `isDone` on a checklist task)
-| field | type |
-|---|
-| id `pk` | uuid |
-| medication_id `fk` | uuid |
-| scheduled_for | timestamptz |
-| status | enum (`taken`\|`skipped`\|`missed`\|`taken_late`) |
-| logged_at | timestamptz |
-
-**`task`** ♻️ (general non-med tasks — keep existing ChecklistTask concept, move to DB)
-| field | type |
-|---|
-| id `pk` / patient_id `fk` | uuid |
-| title | text |
-| due_at | timestamptz |
-| category | enum (`appointment`\|`measurement`\|`lifestyle`\|`admin`) |
-| status | enum |
-| source | enum (`manual`\|`ai_proposed`\|`clinician`) |
-
-### 3.4 Health metrics (HealthKit)
-
-**`health_metric_sample`** ♻️ (today: read live from HealthKit, never persisted)
-| field | type | notes |
+### 8.11 Clinician / provider product (`CLIN`) — Phase 2 revenue
+Separate **Next.js web app** on the same Postgres (distinct RLS role).
+| ID | Pri | Feature |
 |---|---|---|
-| id `pk` / patient_id `fk` | uuid | |
-| type | enum | steps/sleep/hr/bp_sys/bp_dia/glucose/calories/weight |
-| value / unit | numeric/text | |
-| measured_at | timestamptz | |
-| source | enum | `healthkit`\|`manual`\|`device` |
+| CLIN-01 | P2 | Clinician auth, practice model, patient panels |
+| CLIN-02 | P2 | Roster / status board (who's worsening, open alerts) |
+| CLIN-03 | P2 | Alert inbox + ack/resolve (audited) |
+| CLIN-04 | P2 | Patient detail: PRO-CTCAE trends, meds, vitals, documents |
+| CLIN-05 | P2 | **RTM time tracking + billing/superbill export** (core monetization) |
+| CLIN-06 | P2 | EOM ePRO compliance reporting |
+| CLIN-07 | P2 | Secure messaging to patient (audited) |
+| CLIN-08 | P3 | EHR/FHIR integration (Epic/athenahealth) |
 
-> Decision needed (§20): persist HealthKit aggregates server-side (enables clinician view + reports
-> without the phone) vs. keep on-device only (stronger privacy). Recommendation: persist **daily
-> aggregates** only, not raw samples.
+---
 
-### 3.5 Documents & reports
-
-**`document`** 🆕 (today: attachment handled transiently in chat)
-| field | type | notes |
+## 9. Atlas — the AI system (`AI`)
+| ID | Pri | Item |
 |---|---|---|
-| id `pk` / patient_id `fk` | uuid | |
-| kind | enum | `discharge_summary`\|`lab_result`\|`imaging`\|`visit_note`\|`other` |
-| storage_url | text | encrypted bucket |
-| ocr_text | text | extracted |
-| ai_plain_summary | text | "decode my document" output |
-| extracted_values | jsonb | structured labs (e.g. ANC, hemoglobin) with flags |
-| created_at | timestamptz | |
+| AI-01 | P0 | Server-side AI proxy: keys server-side, rate limits, logging, cost caps |
+| AI-02 | P0 | **Gemini** (2.5 Flash chat/low-latency, 2.5 Pro reports) behind a **swappable provider interface** |
+| AI-03 | P1 | Prompt library + versioning (Atlas chat, report, doc-summary, visit-prep) |
+| AI-04 | P1 | Structured output (JSON/tool-use) for lab extraction, task proposals, report payloads |
+| AI-05 | P1 | Evaluation harness (accuracy, refusals, hallucination, reading level) |
+| AI-06 | P0 | Guardrails & red-team (crisis, no-diagnosis, jailbreak, PII) |
+| AI-07 | P2 | RAG infra (embeddings over user docs/history) |
+| AI-08 | P1 | Cost & latency monitoring + fallbacks (e.g. Groq backup) |
 
-**`report`** ♻️ (today: `HealthReport` in UserDefaults + on-disk PDF)
-| field | type | notes |
+**PHI rule:** free Gemini trains on prompts and has no BAA → **synthetic/test data only** while on
+free tier. Before any real patient data reaches the model, switch the proxy to a HIPAA-eligible BAA
+provider (Google Vertex / Anthropic / AWS Bedrock). The swappable interface makes this a config change.
+
+---
+
+## 10. Security, privacy & HIPAA (`SEC`)
+| ID | Pri | Item |
 |---|---|---|
-| id `pk` / patient_id `fk` | uuid | |
-| kind | enum | `visit_prep`\|`interval_summary`\|`shared_with_clinician` |
-| date_range | daterange | |
-| structured_payload | jsonb | the data behind the visual report (§7) |
-| narrative | text | AI prose (secondary now) |
-| pdf_url | text | |
-| shared_with `fk` | uuid[] | clinician recipients |
-| created_at | timestamptz | |
-
-### 3.6 Clinical trials (existing, keep)
-
-**`trial_match`** 🆕 (persist what's today computed live)
-| field | type |
-|---|
-| id `pk` / patient_id `fk` | uuid |
-| nct_id | text |
-| match_score | numeric |
-| status | enum (`suggested`\|`saved`\|`contacted`\|`dismissed`) |
+| SEC-01 | **P0 now** | Remove hardcoded secrets; rotate exposed Featherless key |
+| SEC-02 | P0 | Server-side secret management |
+| SEC-03 | P0 | Postgres Row-Level Security |
+| SEC-04 | P0 | TLS in transit; at-rest encryption (DB + document storage) |
+| SEC-05 | P1 | Auth hardening (MFA option, session expiry, biometric app lock) |
+| SEC-06 | P2 | Audit logging (every PHI access) |
+| SEC-07 | P2 | HIPAA posture: BAAs (Supabase Team, AI provider, push, analytics); risk assessment |
+| SEC-08 | P0 | Versioned consent + granular sharing + revocation |
+| SEC-09 | P3 | De-identification pipeline (safe-harbor) for RWD |
+| SEC-10 | P0 | "Not a medical device" guardrails (stay in FDA CDS/wellness enforcement-discretion; legal review) |
+| SEC-11 | P1 | App-store privacy labels; full account/data deletion + export |
 
 ---
 
-## 4. EPIC: Onboarding & profile (`ONB`)
-
-Builds on existing 7-screen onboarding in `ContentView.swift`.
-
-| ID | Feature | Pri | Description |
-|---|---|---|---|
-| ONB-01 | Coded condition selection | P0 | Replace free-text `managing` list with coded `condition` picker; drives which PRO-CTCAE panel loads. Keep "Other". |
-| ONB-02 | Diagnosis detail capture | P0 | For oncology: diagnosis date, stage, treatment status, current regimen. Branches by condition category. |
-| ONB-03 | Date-of-birth (not age) | P0 | Replace `ageString` with DOB; compute age; needed for reference ranges. |
-| ONB-04 | Care-team invite | P1 | Promote care partner from auth metadata to `care_relationship`; send invite (email/SMS) with permission scopes. |
-| ONB-05 | Treatment calendar setup | P1 | Capture chemo cycle schedule (e.g. every 21 days) so logging prompts align to cycle day. |
-| ONB-06 | Consent & disclaimers | P0 | Explicit consent for data use, AI limitations, "not a medical device" language; versioned + stored. |
-| ONB-07 | HealthKit permission priming | ♻️P0 | Keep existing flow; add explanation of *why* per metric. |
-
-**Functions/services:** `ConditionCatalog.load()`, `PanelResolver.panel(for:condition)`,
-`CareInviteService.invite()`, `ConsentStore.record(version:)`.
-**Acceptance:** a new oncology user finishes onboarding with a coded diagnosis, a loaded symptom
-panel, and (optionally) a pending caregiver invite.
-
----
-
-## 5. EPIC: Structured symptom logging (`SYM`) — **highest priority**
-
-This replaces `SymptomLogView` + `SymptomStore`'s free-text model.
-
-| ID | Feature | Pri | Description |
-|---|---|---|---|
-| SYM-01 | PRO-CTCAE data model | P0 | Implement `symptom_term`, `symptom_panel`, `symptom_report`, `symptom_response` (§3.2). Seed term library. |
-| SYM-02 | Quick-log flow (<30s) | P0 | Condition-panel card stack: tap a symptom → frequency/severity/interference chips. Skip = "none". Target median completion < 30s. |
-| SYM-03 | Daily check-in prompt | P0 | Scheduled push ("How are you feeling today?") aligned to treatment cycle; one-tap deep link. |
-| SYM-04 | Composite grading | P0 | Server fn maps PRO-CTCAE attributes → 0–3 grade (`PRO-01`). |
-| SYM-05 | Free-text + voice notes | ♻️P0 | Keep existing `TextField` + `SpeechRecognizer`; attach as `free_text`/`audio_url` to structured report, not instead of it. |
-| SYM-06 | Baseline & trend detection | P1 | Rolling 7-day baseline per term; detect worsening (Δgrade). Feeds alerts + report. |
-| SYM-07 | Symptom history timeline | ♻️P1 | Upgrade existing list to a per-symptom sparkline + calendar heatmap. |
-| SYM-08 | Caregiver proxy logging | P1 | Caregiver can log on patient's behalf (`source = caregiver`). |
-| SYM-09 | Offline capture & sync | P0 | Queue logs locally (Core Data/SQLite), sync when online (`OFFLINE-01`). |
-| SYM-10 | Widget quick-log upgrade | ♻️P1 | Existing `LogSymptomWidget` deep-links into the new structured quick-log, not the old text box. |
-| SYM-11 | Body-map for pain/location | P2 | Tap-a-bodypart for pain location → `body_location`. |
-
-**Screens/components:** `SymptomCheckInView` (card stack), `SeverityChipRow`, `SymptomTimelineView`,
-`SymptomHeatmapView`, `QuickLogWidgetEntry`.
-**Functions/services:** `SymptomService.submit(report:)`, `ProCtcaeScorer.grade(response:)`,
-`BaselineEngine.baseline(term:window:)`, `OfflineQueue.enqueue/flush()`.
-**Acceptance:** patient logs 3 symptoms with severities in <30s offline on the subway; data syncs and
-appears, graded, in history and (later) in the report and clinician view.
-
----
-
-## 6. EPIC: Alerting & care-team escalation (`ALRT`)
-
-The mechanism behind the survival benefit — symptoms must *reach a human who acts*.
-
-| ID | Feature | Pri | Description |
-|---|---|---|---|
-| ALRT-01 | Alert rule engine | P1 | Evaluate `alert_rule`s on each symptom submit; create `symptom_alert`. |
-| ALRT-02 | Default oncology rule set | P1 | Seed clinically-sensible thresholds (e.g. severe diarrhea, fever-adjacent, uncontrolled pain/nausea, SI flags). |
-| ALRT-03 | Patient-side guidance | P0 | On severe/emergency self-report, immediately surface safety guidance ("call your care team / 911 if…"). **Stays on right side of FDA: guidance, not diagnosis.** |
-| ALRT-04 | Caregiver notification | P1 | Push/SMS to caregiver on urgent alerts (per permissions). |
-| ALRT-05 | Clinician alert inbox | P2 | Phase-2 dashboard queue with ack/resolve + audit trail. |
-| ALRT-06 | Escalation policy | P2 | Configurable per practice (who, order, timeout → escalate). |
-
-**Functions/services:** `AlertEngine.evaluate(report:)`, `EscalationRouter.route(alert:)`,
-`SafetyGuidanceProvider.guidance(for:grade:)`.
-**Acceptance:** a grade-3 nausea report creates an urgent alert, shows the patient guidance, notifies
-the caregiver, and (Phase 2) lands in the clinician inbox with full context.
-
----
-
-## 7. EPIC: Doctor-ready report, redesigned (`RPT`)
-
-Transforms today's AI-prose PDF into a **scannable, data-driven clinical artifact** that also
-*finally includes symptoms*.
-
-| ID | Feature | Pri | Description |
-|---|---|---|---|
-| RPT-01 | Structured report payload | P0 | Assemble `structured_payload`: symptom heatmap by day, worst 3 episodes, med adherence %, vitals trends, new/worsening flags. |
-| RPT-02 | **Include symptom data** | P0 | Fix the core gap — feed real `symptom_response` data into the report (currently punted, ReportStore.swift:352). |
-| RPT-03 | Visual one-pager | P0 | New PDF/preview: top = at-a-glance summary; symptom heatmap grid; medication adherence bar; vitals sparklines. Optimized for a 20-second physician glance. |
-| RPT-04 | AI narrative (secondary) | ♻️P1 | Keep a short AI executive summary, now grounded in real symptom data + upgraded model. |
-| RPT-05 | Visit-prep mode | P1 | "Questions to ask your doctor" + "what changed since last visit" generated for the upcoming appointment. |
-| RPT-06 | Share-to-clinician | P1 | Secure link / portal share / email; track `shared_with`. (Phase 2: lands directly in clinician app.) |
-| RPT-07 | Background generation | ♻️P0 | Keep existing background `ReportStore` job pattern + completion notification. |
-| RPT-08 | PRO-CTCAE attribution | P1 | Label symptom data as PRO-CTCAE-based for clinician credibility/EOM alignment. |
-
-**Components:** `ReportPayloadBuilder`, `VisualReportRenderer` (replaces prose-only
-`ReportPDFRenderer`), `SymptomHeatmapPDFSection`, `AdherenceBarSection`, `VisitPrepView`.
-**Acceptance:** a generated report shows a real symptom heatmap, medication adherence %, vitals
-trends, and flagged changes — and an oncologist can read the key facts in under 30 seconds.
-
----
-
-## 8. EPIC: Decode-my-documents (`DOC`)
-
-Productize the "understand reports back" half — today only a transient chat attachment.
-
-| ID | Feature | Pri | Description |
-|---|---|---|---|
-| DOC-01 | Document capture | P1 | Scan (VisionKit) / photo / PDF / share-sheet import → `document`. |
-| DOC-02 | OCR + extraction | P1 | Server OCR → `ocr_text`; extract structured labs → `extracted_values`. |
-| DOC-03 | Plain-language summary | P1 | AI "what this means for you" at a chosen reading level (reuse `audienceGuidance`). |
-| DOC-04 | Abnormal-value flagging | P1 | Flag out-of-range labs (e.g. low ANC during chemo → infection-risk note + guidance). |
-| DOC-05 | Doc → tasks/meds | ♻️P1 | Keep existing "checklist skill" that proposes tasks; now also proposes coded `medication` rows. |
-| DOC-06 | Doc → questions | P2 | Generate suggested questions to raise with the care team. |
-
-**Components:** `DocumentScannerView`, `DocumentService.ingest()`, `LabExtractor`,
-`PlainLanguageSummarizer`, `AbnormalFlagger`.
-**Acceptance:** user scans a discharge summary; gets a plain-language summary, flagged abnormal labs
-with guidance, and proposed medications/tasks they can accept into their plan.
-
----
-
-## 9. EPIC: Aura AI companion (`AURA`)
-
-Upgrade the existing chat (`AIChatView`) — model, context, safety.
-
-| ID | Feature | Pri | Description |
-|---|---|---|---|
-| AURA-01 | Model upgrade | P0 | Move off Qwen3-4B to **Google Gemini** (2.5 Flash chat / 2.5 Pro reasoning) **via server proxy** behind a swappable provider interface. **Pre-Phase-2 swap:** switch to Claude (Sonnet 4.6) via Vertex AI or AWS Bedrock, both BAA-eligible. |
-| AURA-02 | Inject symptom context | P0 | Add recent graded symptoms + trends to system prompt (today: only Apple Health + conditions). |
-| AURA-03 | Inject meds & adherence | P1 | Add active medication list + adherence so answers are grounded. |
-| AURA-04 | Retrieval over user data | P2 | RAG over symptom history, documents, reports for "what did my labs show last month?". |
-| AURA-05 | Safety guardrails | ♻️P0 | Keep "health-only + no diagnosis/prescription" rules; add crisis/self-harm escalation path; red-team. |
-| AURA-06 | Citations / sources | P2 | When giving clinical info, cite reputable sources. |
-| AURA-07 | Audience tone control | ♻️P1 | Keep existing `audienceGuidance` (reading-level adaptation). |
-
-**Functions/services:** `AuraContextBuilder.build(patient:)`, `AIProxyClient.stream()` (replaces
-direct `FeatherlessAIClient`), `CrisisDetector`.
-**Acceptance:** Aura answers "is my fatigue getting worse?" using the user's actual graded symptom
-trend, in plain language, refusing to diagnose, powered by Gemini through the backend.
-
----
-
-## 10. EPIC: Medications & adherence (`MED`)
-
-Upgrade `ChecklistView`/`ChecklistStore` into a real medication system.
-
-| ID | Feature | Pri | Description |
-|---|---|---|---|
-| MED-01 | Coded medication model | P1 | RxNorm-backed `medication` (§3.3); autocomplete search. |
-| MED-02 | Adherence events | P1 | Replace boolean `isDone` with `medication_event` (taken/skipped/missed/late). |
-| MED-03 | Cyclical schedules | P1 | Support chemo-cycle dosing (on/off days), not just daily. |
-| MED-04 | HealthKit med import | ♻️P1 | Keep existing import; map to coded meds. |
-| MED-05 | Reminders | ♻️P0 | Keep existing local notifications; tie to `medication_event` outcomes. |
-| MED-06 | Adherence in report | P1 | Real adherence % flows into `RPT-01`. |
-| MED-07 | Interaction/side-effect notes | P2 | Surface common side effects to watch (links to symptom panel). |
-
-**Acceptance:** a chemo patient sees today's correct doses per cycle day, logs taken/skipped, and
-that adherence appears in the doctor report.
-
----
-
-## 11. EPIC: Health metrics & HealthKit (`HK`)
-
-Mostly keep the strong existing `healthstore.swift`; add persistence.
-
-| ID | Feature | Pri | Description |
-|---|---|---|---|
-| HK-01 | Keep HealthKit reads | ♻️P0 | steps/sleep/hr/bp/glucose/calories/meds + 30-day history (already solid). |
-| HK-02 | Persist daily aggregates | P1 | Store daily aggregates server-side for clinician view + phone-independent reports (see §20 decision). |
-| HK-03 | Manual vitals entry | P1 | For users without devices (BP cuff readings, weight, temp). |
-| HK-04 | Reference ranges | P2 | Flag out-of-range vitals using age/sex context. |
-| HK-05 | Device integrations | P3 | Beyond Apple: Dexcom (glucose), BP cuffs, scales. |
-
----
-
-## 12. EPIC: Clinical trials (`TRIAL`) — keep & deepen
-
-| ID | Feature | Pri | Description |
-|---|---|---|---|
-| TRIAL-01 | Keep ClinicalTrials.gov search | ♻️P1 | Existing `ClinicalTrialsService` + location filter. |
-| TRIAL-02 | Biomarker-aware matching | P2 | Use diagnosis/stage/biomarkers for better match scores; persist `trial_match`. |
-| TRIAL-03 | Save / track / contact | P2 | Lifecycle on matches. |
-| TRIAL-04 | Pharma sponsorship hooks | P3 | Monetization surface (Outcomes4Me model). |
-
----
-
-## 13. EPIC: Caregiver experience (`CARE`)
-
-| ID | Feature | Pri | Description |
-|---|---|---|---|
-| CARE-01 | Caregiver accounts & roles | P1 | `care_relationship` + permission scopes. |
-| CARE-02 | Proxy logging & viewing | P1 | Log symptoms/meds, view reports per permission. |
-| CARE-03 | Caregiver alert routing | P1 | Receive urgent alerts (`ALRT-04`). |
-| CARE-04 | Shared task coordination | P2 | Multiple caregivers coordinate appointments/tasks. |
-
----
-
-## 14. EPIC: Clinician / provider product (`CLIN`) — Phase 2 revenue
-
-A separate **web** app on the same database (distinct RLS role). This is where money enters.
-
-| ID | Feature | Pri | Description |
-|---|---|---|---|
-| CLIN-01 | Clinician auth & practice model | P2 | Practices, clinicians, patient panels; invite/claim patients. |
-| CLIN-02 | Patient roster & status board | P2 | Triage view: who's worsening, who has open alerts. |
-| CLIN-03 | Alert inbox + ack/resolve | P2 | `ALRT-05/06`; audited. |
-| CLIN-04 | Patient detail / symptom trends | P2 | Full PRO-CTCAE trends, meds, vitals, documents. |
-| CLIN-05 | RTM time tracking & billing export | P2 | Log monitoring time per patient/month → CPT 98975/98980/98981 superbill export. **Core monetization.** |
-| CLIN-06 | EOM ePRO compliance reporting | P2 | Demonstrate ePRO collection for CMS Enhancing Oncology Model. |
-| CLIN-07 | Secure messaging to patient | P2 | Two-way, audited, within app. |
-| CLIN-08 | EHR integration (FHIR) | P3 | Read demographics/problems; write ePRO observations (Epic/athenahealth). |
-
-**Acceptance:** a nurse opens the dashboard, sees three patients flagged worsening, reviews PRO-CTCAE
-trends, acts, logs RTM time, and exports a billing-ready superbill at month end.
-
----
-
-## 15. AI/ML system (`AI`)
-
-> Concrete provider choices, model picks, and the live env-var list live in **`SETUP.md`** (the
-> companion doc). This section is about the *system*: proxy, structured output, eval, guardrails.
-
-| ID | Item | Pri | Description |
-|---|---|---|---|
-| AI-01 | Server-side AI proxy | P0 | All LLM calls go through backend; keys server-side; per-user rate limits, logging, cost caps. |
-| AI-02 | Model integration (build) | P0 | **Build:** Google Gemini 2.5 Flash (chat/document decode, low-latency) + 2.5 Pro (reports, extraction, reasoning), free tier. **Pre-Phase-2 swap:** Claude (Sonnet 4.6) via Vertex AI or AWS Bedrock with a signed BAA — config change only behind the swappable provider interface (AI-01). |
-| AI-03 | Prompt library + versioning | P1 | Centralize system prompts (Aura, report, doc-summary, visit-prep); version & eval. |
-| AI-04 | Structured output | P1 | Tool-use/JSON schema for lab extraction, task proposals, report payloads (not regex on prose). |
-| AI-05 | Evaluation harness | P1 | Golden-set tests for medical accuracy, refusal behavior, hallucination, reading level. |
-| AI-06 | Guardrails & red-team | P0 | Crisis handling, no-diagnosis enforcement, jailbreak resistance, PII handling. |
-| AI-07 | RAG infra | P2 | Embeddings over user docs/history for grounded answers. |
-| AI-08 | Cost & latency monitoring | P1 | Token/cost dashboards; fallbacks. |
-
-> Replaces `FeatherlessAIClient` (Qwen3-4B, hardcoded key, on-device). Keep its nice streaming UX
-> pattern; move the transport server-side.
-
----
-
-## 16. Security, privacy & compliance (`SEC`)
-
-| ID | Item | Pri | Description |
-|---|---|---|---|
-| SEC-01 | Remove hardcoded secrets | **P0 / now** | Featherless key (FeatherlessAIClient.swift:11) and Supabase key (SupabaseClient.swift:13) must leave the binary. Rotate the exposed Featherless key immediately. |
-| SEC-02 | Server-side secret mgmt | P0 | All third-party keys in backend env/secret manager. |
-| SEC-03 | Row-Level Security | P0 | Postgres RLS so a patient can only read their rows; clinicians scoped to their panel. |
-| SEC-04 | Encryption | P0 | TLS in transit; at-rest encryption for DB + document storage. |
-| SEC-05 | Auth hardening | P1 | MFA option, session expiry, device management, biometric app lock. |
-| SEC-06 | Audit logging | P2 | Every PHI access logged (required for clinician side / HIPAA). |
-| SEC-07 | HIPAA posture | P2 | BAAs (Supabase/AWS, AI provider, push, analytics); risk assessment; policies. Required before provider go-live. |
-| SEC-08 | Consent & data-use records | P0 | Versioned consent; granular sharing; revocation. |
-| SEC-09 | De-identification pipeline | P3 | Safe-harbor de-id boundary for RWD products; tested. |
-| SEC-10 | "Not a medical device" guardrails | P0 | Keep app within FDA wellness/CDS enforcement-discretion lines: surface info to clinicians who decide; no autonomous diagnosis/treatment recommendation. Legal review. |
-| SEC-11 | App privacy & data-deletion | P1 | App Store privacy labels, full account/data deletion, export. |
-
----
-
-## 17. Infrastructure & DevOps (`INF`)
-
-| ID | Item | Pri |
+## 11. Infrastructure & CI/CD (`INF`)
+| ID | Pri | Item |
 |---|---|---|
-| INF-01 | Backend service + CI/CD | P0 |
-| INF-02 | DB migrations framework | P0 |
-| INF-03 | Environments (dev/staging/prod) | P1 |
-| INF-04 | Push (APNs) pipeline | P1 |
-| INF-05 | TestFlight + release process | ♻️P0 (TestFlight already announced) |
-| INF-06 | Error monitoring (Sentry) + crash reporting | P1 |
-| INF-07 | Privacy-respecting analytics | P1 |
-| INF-08 | Automated tests (unit/UI) + scoring-fn tests | P1 |
-| INF-09 | Clinician web app hosting | P2 |
-| INF-10 | Backups & disaster recovery | P2 |
+| INF-01 | P0 | Node/TS backend on Vercel + CI/CD |
+| INF-02 | P0 | DB migrations framework (Supabase CLI) |
+| INF-03 | P1 | Environments (dev/staging/prod) |
+| INF-04 | P0 | **Codemagic** pipeline: build/sign iOS+Android on cloud Mac → TestFlight/Play on push |
+| INF-05 | P1 | APNs / FCM push pipeline (P1 local notifications; P2 server push via FCM) |
+| INF-06 | P1 | Error monitoring (Sentry) + crash reporting |
+| INF-07 | P1 | Privacy-respecting analytics (PostHog) |
+| INF-08 | P1 | Automated tests (Dart unit/widget + backend unit; PRO-CTCAE scoring tests) |
+| INF-09 | P2 | Clinician web app hosting (Vercel) |
+| INF-10 | P2 | Backups & disaster recovery |
 
 ---
 
-## 18. Reuse map — keep / refactor / replace
+## 12. Reuse map — Swift → Flutter
 
-| Existing file | Verdict | Action |
+The existing SwiftUI app becomes a **reference**, reimplemented in Dart. Logic and prompts port; UI is
+rebuilt with the Concord design system.
+
+| Existing (Swift) | Verdict | Action in Flutter rebuild |
 |---|---|---|
-| `healthstore.swift` | **Keep** ✅ | Strongest asset; add aggregate persistence (HK-02). |
-| `ChecklistView/ChecklistStore` | **Refactor** ♻️ | Evolve into MED epic; coded meds + adherence events; move off UserDefaults. |
-| `SymptomLogView/SymptomStore` | **Replace** 🔁 | Rebuild on PRO-CTCAE (SYM epic). Keep voice/widget entry points. |
-| `ReportStore/ReportPDFRenderer` | **Refactor** ♻️ | Keep background-job + notification pattern; replace prose-only PDF with visual payload (RPT). Fix symptom inclusion. |
-| `FeatherlessAIClient` | **Replace** 🔁 | Server-side AI proxy (AI-01/02). Keep streaming UX. Build with Gemini; swap to Claude-via-Vertex/Bedrock pre-Phase-2. |
-| `AIChatView` | **Refactor** ♻️ | New context builder + model + guardrails (AURA). |
-| `SummarizeView` | **Refactor** ♻️ | Currently the report-generation screen; split report vs. document-decode (DOC). |
-| `ClinicalTrialsService/View` | **Keep** ✅ | Deepen later (TRIAL). |
-| `CalendarExportManager` | **Keep** ✅ | Works; tie to tasks/appointments. |
-| `SpeechRecognizer` | **Keep** ✅ | Reuse for voice notes. |
-| `LocationManager` | **Keep** ✅ | Trials + practice locating. |
-| `Localization.swift` | **Keep/extend** ✅ | 6 languages; extend to new strings + PRO-CTCAE plain-language. |
-| `AuthStore` | **Refactor** ♻️ | Promote profile/care-partner out of auth metadata into tables (§3.1). |
-| `SupabaseClient` | **Refactor** ♻️ | Stop shipping key; route through backend; add RLS. |
-| `MedoraWidget` | **Keep/upgrade** ♻️ | Point at structured quick-log. |
-| `Theme/MainTabView/ProfileView` | **Keep** ✅ | UI shell; extend with new screens. |
+| `healthstore.swift` | **Reference (high value)** | Reimplement via `health` plugin; this file is the spec for which metrics/queries to reproduce |
+| `ChecklistView/Store` | Reference | Rebuild as MED epic (coded meds + adherence events, server-backed) |
+| `SymptomLogView/Store` | Replace concept | Rebuild on PRO-CTCAE (SYM); keep voice + widget entry points |
+| `ReportStore/Renderer` | Reference | Keep background-job + notification pattern (serverless-safe); new visual payload + Concord skin |
+| `FeatherlessAIClient` | Replace | Server-side Gemini proxy (swappable); keep streaming UX |
+| `AIChatView` | Reference | Rebuild as Atlas with new context builder + guardrails |
+| `SummarizeView` | Reference | Split report vs. document-decode (DOC) |
+| `ClinicalTrialsService/View` | Reference | Rebuild; deepen later (TRIAL) |
+| `CalendarExportManager` | Reference | Re-implement (Flutter calendar plugin) |
+| `SpeechRecognizer` | Reference | Flutter speech-to-text plugin |
+| `LocationManager` | Reference | Flutter geolocation plugin |
+| `Localization.swift` | Reference | Flutter i18n (keep 6 languages) + PRO-CTCAE plain-language |
+| `AuthStore`/`SupabaseClient` | Replace | supabase_flutter SDK; profile/care-partner → real tables + RLS; no key in binary |
+| `MedoraWidget` | Reference | Flutter `home_widget` + per-platform native |
+| `Theme/MainTabView/ProfileView` | Reference | Rebuild shell with Concord `ThemeData` |
 
 ---
 
-## 19. Phased roadmap
+## 13. Phased roadmap
 
-### Phase 1 — Own the patient (P0/P1) · 0–6 months
-**Goal:** best-in-class patient experience for one chemo cohort; win an oncologist champion.
-- SEC-01/02 (secrets out, rotate key) — **do first, this week**
-- Target architecture skeleton: backend + AI proxy (AI-01/02), DB schema + RLS (SEC-03)
-- SYM epic (PRO-CTCAE logging, offline, daily check-in) — the centerpiece
-- RPT epic (visual report that *includes symptoms*) — the wedge artifact
-- AURA-01/02/05 (Gemini + symptom context + guardrails)
-- DOC-01..04 (decode-my-documents)
-- ONB-01/02/03/06 (coded onboarding + consent)
-- MED-01/02 (coded meds + adherence), HK-01 (keep)
-- ALRT-03 (patient-side safety guidance — no clinician needed yet)
-**Exit criteria:** retained weekly loggers in the cohort; ≥1 oncologist says "I want my patients on
-this"; report demoed to clinicians.
+**Phase 1 — Own the patient (0–6 mo).** SEC-01/02 (secrets out, rotate key — *first, this week*) →
+backend skeleton on Vercel + AI proxy (AI-01/02) + Supabase schema/RLS (SEC-03) + Codemagic CI
+(INF-04) → **SYM** (PRO-CTCAE logging, offline, daily check-in) → **RPT** (visual report incl.
+symptoms) → **ATLAS** (Gemini + symptom context + guardrails) → **DOC** (decode docs) → ONB coded
+onboarding + consent → MED coded meds/adherence → HK reads → ALRT-03 patient guidance → Concord brand
+system. *Exit:* retained weekly loggers + ≥1 oncologist says "I want my patients on this."
 
-### Phase 2 — Bill the provider (P2) · 6–18 months
-**Goal:** turn the report + alerts into a reimbursable clinician product.
-- CLIN epic (dashboard, alert inbox, RTM time tracking & billing export, EOM compliance)
-- ALRT-01/02/04/05/06 (full alert engine + escalation)
-- CARE epic (caregiver roles, proxy, alert routing)
-- SEC-06/07 (audit logging, HIPAA/BAAs) — gate before go-live
-- HK-02/03 (server aggregates, manual vitals)
-**Exit criteria:** first paying practice; RTM superbills generated; EOM ePRO reporting demonstrated.
+**Phase 2 — Bill the provider (6–18 mo).** CLIN web app (dashboard, alert inbox, RTM billing, EOM
+compliance) → full ALRT engine + escalation → CARE roles/proxy/routing → SEC-06/07 (audit, HIPAA/BAAs,
+**switch AI to BAA provider**) → HK server aggregates + manual vitals. *Exit:* first paying practice;
+RTM superbills; EOM ePRO demonstrated.
 
-### Phase 3 — Sell the insight (P3) · 18 months+
-**Goal:** platform/venture-scale upside.
-- TRIAL-02/03/04 (biomarker matching, pharma hooks)
-- AI-07 (RAG), AURA-04/06
-- SEC-09 (de-identification), RWD data products
-- CLIN-08 (FHIR/EHR integration)
-- HK-05 (device ecosystem)
-**Exit criteria:** first pharma trial-recruitment / RWD contract.
+**Phase 3 — Sell the insight (18 mo+).** TRIAL biomarker matching + pharma hooks → AI-07 RAG → SEC-09
+de-identification + RWD products → CLIN-08 FHIR/EHR → HK device ecosystem. *Exit:* first pharma
+trial-recruitment / RWD contract.
 
 ---
 
-## 20. Open decisions (need a call before/while building)
+## 14. Decisions
 
-1. ~~**Backend stack**~~ **RESOLVED (2026-06-15):** Node/TS on Vercel (serverless functions). Postgres
-   still on Supabase (auth + DB + RLS); the Node service holds secrets, runs scoring/alerts,
-   proxies AI. Long-running report jobs use a queue (Inngest/QStash), not long-lived functions.
-2. **HealthKit persistence:** raw vs. daily-aggregate vs. on-device-only. *Recommendation: daily
-   aggregates server-side; no raw samples.*
-3. ~~**Beachhead cohort**~~ **RESOLVED (2026-06-15):** any active-chemo patient across the 7 EOM
-   cancer types (not a single tumor type).
-4. **PRO-CTCAE licensing/attribution:** confirm usage terms for the NCI item library + localized
-   plain-language phrasing.
-5. **Clinician app framework:** Next.js (recommended) vs. native; build vs. buy alert dashboard.
-6. **Report rendering location:** keep client-side PDF (offline) vs. server-side (consistency,
-   clinician parity). *Recommendation: server-side for shared reports, client for instant preview.*
-7. **Regulatory line:** legal review on where alerting/guidance sits re: FDA CDS/device — keep in
-   enforcement-discretion zone.
-8. **Identity for caregivers/clinicians:** separate auth tenants vs. single users table with roles.
-   *Recommendation: single users table + role + RLS.*
-9. ~~**AI provider**~~ **RESOLVED (2026-06-17):** **Build phase = Google Gemini free tier** (2.5 Flash
-   / 2.5 Pro) via AI Studio — no BAA, no card. **Pre-Phase-2 swap (mandatory before any real PHI
-   flows):** Claude (Sonnet 4.6) via Vertex AI or AWS Bedrock, both BAA-eligible. The provider
-   interface is built swappable from day one. See `SETUP.md` for the concrete credential list.
+### Locked
+1. **Beachhead:** any active-chemo patient (7 EOM cancer types).
+2. **Mobile framework:** Flutter (dev has no Mac → Windows-native dev; Codemagic cloud-Mac CI for iOS).
+3. **Backend:** Node/TS on Vercel (serverless; stream AI, queue long jobs).
+4. **Database:** Supabase Postgres + Auth + Storage + RLS.
+5. **AI (build phase):** Google Gemini free tier behind a swappable proxy; BAA provider before real PHI.
+6. **Hosting:** Vercel (already owned). **CI:** Codemagic.
+7. **Brand:** Concord (app) / Atlas (AI); "Clinical Trust", light-first; Inter; tokens in §4 / BRAND.md.
+8. **Accounts:** Apple Developer + Vercel already owned → no paid signup to start.
+
+### Open (need a call before/while building)
+1. HealthKit persistence: recommend **daily aggregates** server-side, no raw samples.
+2. PRO-CTCAE licensing/attribution terms (NCI item library + localized plain-language).
+3. Report rendering location: client preview (offline) + server render for shared reports.
+4. Regulatory line: legal review keeping alerting/guidance in FDA enforcement-discretion zone.
+5. Final domain + bundle id (`concordhealth.app` / `com.concord.app`?) + trademark check.
+6. Push: confirm Firebase Cloud Messaging for Phase-2 server push (FCM covers iOS+Android).
 
 ---
 
-## Appendix A — Existing codebase snapshot (as cloned 2026-06-15)
+## 15. Appendix
 
-- **Stack:** SwiftUI iOS + Widget; Supabase (auth + `symptoms` table); Featherless AI (Qwen3-4B);
+### Existing codebase snapshot (cloned 2026-06-15)
+- Stack: SwiftUI iOS + Widget; Supabase (auth + `symptoms` table); Featherless AI (Qwen3-4B);
   ClinicalTrials.gov; EventKit; PDFKit; Speech; ~9,446 LOC Swift.
-- **Persistence today:** Supabase (auth metadata, symptoms), UserDefaults/AppStorage (checklist,
-  reports index, profile name/email), on-disk (PDFs), HealthKit (live reads).
-- **Conditions today:** 9 free-text presets + "Other" (no coding, no condition-specific logic).
-- **Key gaps confirmed by code read:**
-  - Symptoms are free-text only and **never reach the report or Aura** (ReportStore.swift:352
-    explicitly punts symptom data).
-  - AI is Qwen3-4B with **hardcoded keys** (FeatherlessAIClient.swift:11, SupabaseClient.swift:13).
-  - No backend; the app calls AI directly. No RLS schema; profile lives in auth metadata.
-  - Clinical-ish data (checklist) in UserDefaults.
-- **Strengths to build on:** excellent HealthKit layer, solid background-report + notification
-  pattern, working trials search, 6-language localization, voice input, home-screen widget,
-  care-partner capture (just needs promotion to a real model).
+- Confirmed gaps: symptoms are free-text and **never reach the report or AI** (ReportStore punts on
+  them); AI is weak + **hardcoded keys** (public repo); no backend; profile lives in auth metadata; no
+  RLS; clinical data in UserDefaults.
+- Strengths to carry as references: strong HealthKit layer, background-report + notification pattern,
+  trials search, 6-language localization, voice input, home-screen widget, care-partner capture.
+
+### Companion documents
+- `BRAND.md` — full brand & visual system.
+- `MEDORA_API_SETUP_PROMPT.md` — paste-into-fresh-agent provisioning runbook.
+- `SPEC.md` — **superseded** by this document (kept for history).
+
+### Glossary
+PRO-CTCAE (NCI patient-reported adverse-event instrument) · EOM (CMS Enhancing Oncology Model) · RTM
+(Remote Therapeutic Monitoring CPT codes) · ePRO (electronic patient-reported outcome) · RWD
+(real-world data) · BAA (Business Associate Agreement, HIPAA) · ANC (absolute neutrophil count).
