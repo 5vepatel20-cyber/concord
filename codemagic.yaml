@@ -1,0 +1,110 @@
+# Codemagic CI/CD for the Concord Flutter app.
+#
+# Lives at the repo root (not inside app/) so a single workflow can build
+# iOS and Android, run tests, and (later) sign + push to TestFlight / Play
+# internal. The verification-only build below doesn't sign or upload — it
+# just confirms the build pipeline works end-to-end.
+#
+# Env vars come from the Codemagic "concord_app" group:
+#   - SUPABASE_URL, SUPABASE_ANON_KEY
+#   - SENTRY_DSN_IOS, POSTHOG_API_KEY, POSTHOG_HOST
+#   - API_BASE_URL
+#   - BACKEND_URL  (alias of API_BASE_URL for clarity in --dart-define)
+#   - APP_BUNDLE_ID = com.concord.app
+#
+# Apple signing materials (p8 key + provisioning profile) are added to a
+# separate "concord_app_signing" group once the friend provides them.
+
+workflows:
+  # ── iOS no-signing verification ─────────────────────────────────────
+  ios_verify:
+    name: iOS verify
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Set up
+        script: |
+          set -e
+          git clone https://github.com/flutter/flutter.git -b stable --depth 1 $HOME/flutter
+          export PATH="$HOME/flutter/bin:$PATH"
+          echo "flutter: $(flutter --version | head -1)"
+      - name: Install deps
+        script: |
+          set -e
+          cd app
+          flutter pub get
+      - name: Static analysis
+        script: |
+          set -e
+          cd app
+          flutter analyze --no-fatal-infos
+      - name: Unit tests
+        script: |
+          set -e
+          cd app
+          flutter test
+      - name: iOS build (no codesign)
+        script: |
+          set -e
+          cd app
+          flutter build ios --release --no-codesign \
+            --dart-define=API_BASE_URL=$API_BASE_URL \
+            --dart-define=SUPABASE_URL=$SUPABASE_URL \
+            --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
+            --dart-define=SENTRY_DSN_IOS=$SENTRY_DSN_IOS \
+            --dart-define=POSTHOG_API_KEY=$POSTHOG_API_KEY \
+            --dart-define=POSTHOG_HOST=$POSTHOG_HOST
+
+  # ── Android APK verification ───────────────────────────────────────
+  android_verify:
+    name: Android verify
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      android:
+        api_level: 34
+        ndk: 26.1
+    scripts:
+      - name: Set up
+        script: |
+          set -e
+          git clone https://github.com/flutter/flutter.git -b stable --depth 1 $HOME/flutter
+          export PATH="$HOME/flutter/bin:$PATH"
+          echo "flutter: $(flutter --version | head -1)"
+      - name: Install deps
+        script: |
+          set -e
+          cd app
+          flutter pub get
+      - name: Static analysis
+        script: |
+          set -e
+          cd app
+          flutter analyze --no-fatal-infos
+      - name: Unit tests
+        script: |
+          set -e
+          cd app
+          flutter test
+      - name: Build APK
+        script: |
+          set -e
+          cd app
+          flutter build apk --release \
+            --dart-define=API_BASE_URL=$API_BASE_URL \
+            --dart-define=SUPABASE_URL=$SUPABASE_URL \
+            --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
+            --dart-define=SENTRY_DSN_IOS=$SENTRY_DSN_IOS \
+            --dart-define=POSTHOG_API_KEY=$POSTHOG_API_KEY \
+            --dart-define=POSTHOG_HOST=$POSTHOG_HOST
+      - name: Build appbundle
+        script: |
+          set -e
+          cd app
+          flutter build appbundle --release \
+            --dart-define=API_BASE_URL=$API_BASE_URL \
+            --dart-define=SUPABASE_URL=$SUPABASE_URL \
+            --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY

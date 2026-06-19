@@ -1,0 +1,103 @@
+name: concord
+description: "Concord - clinical-grade cancer care companion (Flutter iOS app). See SPEC.md."
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+# The following defines the version and build number for your application.
+# A version number is three numbers separated by dots, like 1.2.43
+# followed by an optional build number separated by a +.
+# Both the version and the builder number may be overridden in flutter
+# build by specifying --build-name and --build-number, respectively.
+# In Android, build-name is used as versionName while build-number used as versionCode.
+# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
+# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
+# Read more about iOS versioning at
+# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
+# In Windows, build-name is used as the major, minor, and patch parts
+# of the product and file versions while build-number is used as the build suffix.
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+# Dependencies specify other packages that your package needs in order to work.
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State management — compile-time-safe, plays well with Supabase streams.
+  flutter_riverpod: ^2.6.1
+
+  # Backend SDKs.
+  supabase_flutter: ^2.8.4
+
+  # Routing.
+  go_router: ^14.6.2
+
+  # Env injection. .env is gitignored; .env.example is committed.
+  flutter_dotenv: ^5.2.1
+
+  # Immutable models with copyWith / pattern matching.
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  # Connectivity (offline queue drain).
+  connectivity_plus: ^6.1.0
+
+  # Local notifications + secure storage used by supabase_flutter under the hood.
+  flutter_secure_storage: ^9.2.4
+
+  # Offline storage (drift = type-safe sqlite).
+  drift: ^2.22.1
+  drift_flutter: ^0.2.4
+  sqlite3_flutter_libs: ^0.5.27
+  path_provider: ^2.1.5
+  path: ^1.9.1
+
+  # Misc.
+  intl: ^0.20.1
+  collection: ^1.19.1
+  uuid: ^4.5.1
+  http: ^1.2.2
+  shared_preferences: ^2.3.3
+
+  # Observability.
+  sentry_flutter: ^8.14.0
+  posthog_flutter: ^4.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+  # Code generation.
+  build_runner: ^2.4.13
+  freezed: ^2.5.7
+  json_serializable: ^6.9.0
+  drift_dev: ^2.22.1
+  riverpod_generator: ^2.6.3
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:
+
+  # The following line ensures that the Material Icons font is
+  # included with your application, so that you can use the icons in
+  # the material Icons class.
+  uses-material-design: true
+
+  assets:
+    - assets/fonts/
+
+  # Inter — bundled as a static asset (NOT google_fonts) so the app works
+  # offline and on airplane mode. See BRAND.md §4.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/InterVariable.ttf
