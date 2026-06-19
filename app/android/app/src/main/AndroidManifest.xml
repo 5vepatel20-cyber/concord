@@ -1,4 +1,34 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- ── Concord day-1 permissions ──────────────────────────────────
+         Each one is required for a feature shipping in 1.0/1.1.
+         Declared up front so re-builds in CI don't keep re-adding them. -->
+
+    <!-- Daily check-in notification (SYM-03). Android 13+ requires the
+         runtime permission; the Flutter layer prompts for it. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!-- Schedule the daily check-in at the user-chosen wall-clock time.
+         USE_EXACT_ALARM is the Android 14+ way; SCHEDULE_EXACT_ALARM is
+         the Android 12/13 fallback. flutter_local_notifications picks. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+
+    <!-- Reschedule notifications after a device reboot so the daily
+         check-in doesn't silently die. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+
+    <!-- Health Connect is the Android analog of HealthKit (HK-01).
+         Google fit permissions were deprecated; Health Connect is the
+         supported path as of Android 14. -->
+    <uses-permission android:name="android.permission.health.READ_STEPS"/>
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE"/>
+    <uses-permission android:name="android.permission.health.READ_SLEEP"/>
+    <uses-permission android:name="android.permission.health.READ_WEIGHT"/>
+
+    <!-- Internet is already implicit but spelled out so it's obvious
+         the app needs network for Supabase + Atlas. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="concord"
         android:name="${applicationName}"
@@ -23,6 +53,16 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+
+            <!-- Custom URL scheme deep-link (matches iOS com.concord.app).
+                 concord://log opens the quick-log; concord://report/<id>
+                 jumps to a specific report. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="com.concord.app"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

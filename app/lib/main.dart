@@ -16,8 +16,10 @@ import 'app.dart';
 import 'core/config/env.dart';
 import 'core/monitoring/posthog_init.dart';
 import 'core/monitoring/sentry_init.dart';
+import 'core/notifications/notification_service.dart';
 import 'core/sync/sync_service.dart';
 import 'data/supabase/supabase_provider.dart';
+import 'features/profile/settings_storage.dart';
 
 Future<void> main() async {
   // Sentry is initialized first so it captures anything that goes wrong
@@ -52,6 +54,19 @@ Future<void> main() async {
     // Start the sync service eagerly — it listens to connectivity + auth
     // state and drains the offline queue whenever conditions allow.
     container.read(syncServiceProvider);
+
+    // Initialize the notification plugin and re-schedule the daily check-in
+    // if it was previously enabled. We don't request permission here —
+    // that's triggered by the user toggling the setting in Profile.
+    final notif = container.read(notificationServiceProvider);
+    await notif.init();
+    final settings = await container.read(settingsControllerProvider.future);
+    if (settings.dailyCheckInEnabled) {
+      await notif.scheduleDailyCheckIn(
+        time: settings.dailyCheckInTime,
+        enabled: true,
+      );
+    }
 
     runApp(
       UncontrolledProviderScope(

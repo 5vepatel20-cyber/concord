@@ -8,11 +8,17 @@
 // Redirect logic:
 //   - Unauthenticated visiting a non-public route → /sign-in
 //   - Authenticated visiting a public auth route → /home
+//
+// Deep links:
+//   - concord://log → /log (from notification taps / future share sheets)
+//   - concord://report/<id> → /report/:id
+//   - concord://atlas → /atlas
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/notifications/notification_service.dart';
 import 'features/atlas/chat_screen.dart';
 import 'features/auth/auth_controller.dart';
 import 'features/auth/forgot_password_screen.dart';
@@ -40,6 +46,17 @@ class _ConcordAppState extends ConsumerState<ConcordApp> {
   void initState() {
     super.initState();
     _router = _buildRouter(ref);
+
+    // Cold-start deep link: if the app was launched from a notification
+    // tap, the NotificationService recorded the payload before runApp.
+    // Schedule a post-frame jump so the router is ready.
+    final notif = ref.read(notificationServiceProvider);
+    final payload = notif.initialPayload;
+    if (payload != null && payload.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _router.go(payload);
+      });
+    }
   }
 
   @override

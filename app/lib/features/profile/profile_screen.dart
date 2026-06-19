@@ -1,7 +1,8 @@
 // Profile + settings screen.
 //
-// Sections: Account, Privacy, Data, About.
+// Sections: Account, Reminders, Privacy, Data, About.
 // - Account: email, sign out (wipes keychain).
+// - Reminders: daily check-in toggle + time picker (SYM-03).
 // - Privacy: PostHog opt-in toggle (default off, persisted locally).
 // - Data: consent version (read-only — captured at onboarding).
 // - About: app version + privacy policy link stub.
@@ -10,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/notifications/notification_service.dart';
 import '../../data/supabase/supabase_provider.dart';
 import '../../theme/tokens.dart';
 import 'settings_storage.dart';
@@ -49,6 +51,66 @@ class ProfileScreen extends ConsumerWidget {
                   await supabase.auth.signOut();
                   if (context.mounted) context.go('/sign-in');
                 },
+              ),
+            ]),
+
+            // Reminders (SYM-03).
+            const SizedBox(height: Space.s5),
+            _SectionHeader('Reminders'),
+            _SettingsCard(children: [
+              settingsAsync.when(
+                loading: () => const ListTile(
+                  leading: Icon(Icons.notifications_active_outlined),
+                  title: Text('Daily check-in'),
+                  subtitle: Text('Loading…'),
+                ),
+                error: (e, _) => ListTile(
+                  leading: const Icon(Icons.error_outline),
+                  title: const Text('Daily check-in'),
+                  subtitle: Text('Error: $e'),
+                ),
+                data: (s) => Column(
+                  children: [
+                    SwitchListTile(
+                      secondary: const Icon(Icons.notifications_active_outlined),
+                      title: const Text('Daily check-in'),
+                      subtitle: const Text(
+                        'A gentle daily reminder to log how you are feeling.',
+                      ),
+                      value: s.dailyCheckInEnabled,
+                      onChanged: (v) => ref
+                          .read(settingsControllerProvider.notifier)
+                          .setDailyCheckInEnabled(v),
+                    ),
+                    if (s.dailyCheckInEnabled) ...[
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.schedule_outlined),
+                        title: const Text('Time'),
+                        subtitle: Text(s.dailyCheckInTime.toString()),
+                        trailing: TextButton(
+                          onPressed: () async {
+                            final picked = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay(
+                                hour: s.dailyCheckInTime.hour,
+                                minute: s.dailyCheckInTime.minute,
+                              ),
+                            );
+                            if (picked != null) {
+                              await ref
+                                  .read(settingsControllerProvider.notifier)
+                                  .setDailyCheckInTime(
+                                    TimeOfDayHHMM(picked.hour, picked.minute),
+                                  );
+                            }
+                          },
+                          child: const Text('Change'),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ]),
 

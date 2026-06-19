@@ -26,6 +26,71 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+
+	<!-- ── Concord day-1 polish ──────────────────────────────────────────
+	     Locked in now so re-signing in Codemagic doesn't burn 20 min
+	     per cycle. Each entry has a reason. -->
+
+	<!-- Custom URL scheme: opens concord://log, concord://report/<id>,
+	     concord://atlas from system links / future notifications / share
+	     sheets. Apple requires one per app for App Store review. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.concord.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.concord.app</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- ATS: dev needs to talk to http://localhost (debug Atlas proxy);
+	     opt-in only for loopback so prod traffic stays HTTPS-only. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+
+	<!-- App uses only HTTPS + standard crypto; declare so App Store does
+	     not block submission on a yearly export-compliance prompt. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+
+	<!-- HealthKit (HK-01): per-metric rationale strings are required by
+	     Apple or the read request will be silently denied. -->
+	<key>NSHealthShareUsageDescription</key>
+	<string>Concord reads steps, sleep, and heart rate to help you and your care team see how treatment is affecting your day-to-day. You can disconnect this any time in Settings.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Concord does not write to Apple Health today. If that changes, you will be asked again before any data is saved.</string>
+
+	<!-- Universal Links host placeholder; wired in once the marketing
+	     domain (concord.app) is registered. -->
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>NSUserActivityTypeBrowsingWeb</string>
+	</array>
+
+	<!-- Background modes: silent-push slot reserved for future Atlas
+	     proactive nudges; not used in 1.0. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
+
+	<!-- Bundle version / build metadata above; UI bits below. -->
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

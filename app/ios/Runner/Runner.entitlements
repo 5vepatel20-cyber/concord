@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Runner.entitlements — declares iOS capabilities for Concord.
+
+   HealthKit (HK-01): required to read steps / heart rate / sleep / weight
+   from Apple Health. The capability is also toggled in the Xcode project
+   (Signing & Capabilities → + HealthKit); this file is what gets
+   embedded in the binary at signing time.
+
+   Background modes for remote push are intentionally NOT declared —
+   we have no server-driven push in 1.0/1.1. -->
+
+<plist version="1.0">
+<dict>
+	<key>com.apple.developer.healthkit</key>
+	<true/>
+	<key>com.apple.developer.healthkit.access</key>
+	<array/>
+</dict>
+</plist>

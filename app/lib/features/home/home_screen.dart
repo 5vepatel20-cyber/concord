@@ -3,6 +3,7 @@
 // Shows:
 //   - Today's date + a "Good morning" greeting (uses the user's first name)
 //   - "Log a symptom" CTA that opens the quick-log bottom sheet
+//   - Today's activity (HealthKit / Health Connect snapshot — optional)
 //   - Recent reports count (placeholder for Step 8)
 //   - Latest Atlas nudge (placeholder for Step 9)
 
@@ -10,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/health/health_repository.dart';
 import '../../data/supabase/supabase_provider.dart';
 import '../../theme/tokens.dart';
 import '../symptoms/quick_log_screen.dart';
@@ -73,6 +75,8 @@ class HomeScreen extends ConsumerWidget {
             _LogSymptomCta(
               onTap: () => QuickLogScreen.show(context),
             ),
+            const SizedBox(height: Space.s5),
+            const _TodayActivityCard(),
             const SizedBox(height: Space.s6),
             _Section(
               title: 'Recent reports',
@@ -93,6 +97,166 @@ class HomeScreen extends ConsumerWidget {
     if (now.hour < 12) return 'Good morning';
     if (now.hour < 17) return 'Good afternoon';
     return 'Good evening';
+  }
+}
+
+/// Today-so-far snapshot from Apple Health / Health Connect. Renders a
+/// "connect" CTA the first time, then a compact three-stat card.
+class _TodayActivityCard extends ConsumerStatefulWidget {
+  const _TodayActivityCard();
+
+  @override
+  ConsumerState<_TodayActivityCard> createState() => _TodayActivityCardState();
+}
+
+class _TodayActivityCardState extends ConsumerState<_TodayActivityCard> {
+  bool _checking = true;
+  HealthSnapshot? _snapshot;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _checking = true);
+    final repo = ref.read(healthRepositoryProvider);
+    final granted = await repo.hasPermission();
+    if (!mounted) return;
+    if (!granted) {
+      setState(() {
+        _checking = false;
+        _snapshot = null;
+      });
+      return;
+    }
+    final snap = await repo.fetchTodaySnapshot();
+    if (!mounted) return;
+    setState(() {
+      _checking = false;
+      _snapshot = snap;
+    });
+  }
+
+  Future<void> _connect() async {
+    final repo = ref.read(healthRepositoryProvider);
+    final granted = await repo.requestPermission();
+    if (!mounted) return;
+    if (!granted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Health permission denied.')),
+      );
+      return;
+    }
+    await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_checking) {
+      return const Card(
+        child: SizedBox(
+          height: 96,
+          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+      );
+    }
+    final s = _snapshot;
+    if (s == null || s.isEmpty) {
+      return Card(
+        child: ListTile(
+          leading: const Icon(Icons.favorite_outline),
+          title: const Text("Connect Apple Health / Health Connect"),
+          subtitle: const Text(
+            'See steps, sleep, and heart rate alongside your symptoms.',
+          ),
+          trailing: TextButton(
+            onPressed: _connect,
+            child: const Text('Connect'),
+          ),
+        ),
+      );
+    }
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          Space.s4, Space.s3, Space.s4, Space.s3,
+        ),
+        child: Row(
+          children: [
+            _Stat(
+              icon: Icons.directions_walk,
+              label: 'Steps',
+              value: s.steps?.toString() ?? '–',
+            ),
+            _Stat(
+              icon: Icons.favorite_outline,
+              label: 'Avg HR',
+              value: s.avgHeartRateBpm == null ||
+                      s.avgHeartRateBpm!.isNaN
+                  ? '–'
+                  : '${s.avgHeartRateBpm!.round()}',
+              suffix: 'bpm',
+            ),
+            _Stat(
+              icon: Icons.bedtime_outlined,
+              label: 'Sleep',
+              value: s.sleepHoursLastNight == null
+                  ? '–'
+                  : s.sleepHoursLastNight!.toStringAsFixed(1),
+              suffix: 'h',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  const _Stat({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.suffix,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final String? suffix;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(icon, color: t.colorScheme.primary, size: 22),
+          const SizedBox(height: Space.s1),
+          RichText(
+            text: TextSpan(
+              style: t.textTheme.titleMedium,
+              children: [
+                TextSpan(text: value),
+                if (suffix != null)
+                  TextSpan(
+                    text: ' $suffix',
+                    style: t.textTheme.bodySmall?.copyWith(
+                      color: Neutrals.slate,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: Space.s1),
+          Text(label, style: t.textTheme.bodySmall?.copyWith(
+            color: Neutrals.slate,
+          )),
+        ],
+      ),
+    );
   }
 }
 
