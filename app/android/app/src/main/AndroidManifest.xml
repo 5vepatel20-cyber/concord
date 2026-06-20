@@ -29,6 +29,13 @@
          the app needs network for Supabase + Atlas. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- Voice input for free-text notes (SYM-05). RECORD_AUDIO is the
+         runtime permission for the mic; BLUETOOTH_CONNECT lets the
+         speech recognizer route through a paired headset mic. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.BLUETOOTH"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+
     <application
         android:label="concord"
         android:name="${applicationName}"
@@ -80,6 +87,12 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Android 11+ package visibility: speech_to_text needs to
+             discover a RecognitionService to bind to. Without this, the
+             listen call fails silently with no recognizer available. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
         </intent>
     </queries>
 </manifest>

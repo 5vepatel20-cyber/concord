@@ -53,6 +53,13 @@ class NotificationService {
   Future<void> init() async {
     if (_initialized) return;
 
+    // flutter_local_notifications has no web implementation. On web we no-op
+    // so main.dart can still call init() unconditionally.
+    if (kIsWeb) {
+      _initialized = true;
+      return;
+    }
+
     tz_data.initializeTimeZones();
     // Best-effort: pick the device's local zone. Falls back to UTC if
     // flutter_native_timezone isn't available (we'd add that later).
@@ -123,6 +130,7 @@ class NotificationService {
     required bool enabled,
   }) async {
     if (!_initialized) await init();
+    if (kIsWeb) return;
     await _plugin.cancel(_dailyCheckInId);
 
     if (!enabled) {
@@ -167,6 +175,7 @@ class NotificationService {
 
   Future<void> cancelDailyCheckIn() async {
     if (!_initialized) await init();
+    if (kIsWeb) return;
     await _plugin.cancel(_dailyCheckInId);
   }
 

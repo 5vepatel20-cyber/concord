@@ -110,8 +110,10 @@ class SymptomRepository {
       // doesn't keep the UI blocked; failure here just means we wait for the
       // sync drain.
       try {
-        final result = await submitOnline(payload)
-            .timeout(const Duration(seconds: 5));
+        final result = await submitOnline(
+          payload,
+          idempotencyKey: localId,
+        ).timeout(const Duration(seconds: 5));
         await db.markSymptomReportSynced(
           localId: localId,
           serverId: result.serverId,
@@ -140,7 +142,15 @@ class SymptomRepository {
 
   /// Result of a network submit. Exposes emergency guidance (if any) alongside
   /// the server-assigned id so the UI can show it without an extra fetch.
-  Future<SubmitOnlineResult> submitOnline(String payloadJson) async {
+  ///
+  /// [idempotencyKey] is sent as the `Idempotency-Key` header so a retry of
+  /// the same payload replays the cached response instead of creating a
+  /// second row. Pass the row's localId (UUID, generated once on enqueue
+  /// and stable across retries).
+  Future<SubmitOnlineResult> submitOnline(
+    String payloadJson, {
+    required String idempotencyKey,
+  }) async {
     final apiBase = _ref.read(apiBaseUrlProvider);
     // Read live from the client so a refreshed JWT is used.
     final session = _ref.read(supabaseClientProvider).auth.currentSession;
@@ -156,6 +166,7 @@ class SymptomRepository {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer $token',
+            'Idempotency-Key': idempotencyKey,
           },
           body: payloadJson,
         )

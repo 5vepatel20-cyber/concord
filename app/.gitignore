@@ -60,3 +60,6 @@ app.*.map.json
 /ios/.symlinks/
 /ios/Flutter/Flutter.framework
 /ios/Flutter/Flutter.podspec
+
+# ── Drift web worker: source lives in lib/ for compilation, output in web/ ─
+/lib/drift_worker.dart

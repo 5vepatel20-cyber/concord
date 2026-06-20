@@ -1,6 +1,13 @@
 // POST /api/symptoms/submit — auth-required. Accepts a symptom report with
 // one or more structured responses, grades them via the PRO-CTCAE scorer,
 // and persists to Postgres. This is the SYM-04 + SYM-09 wired endpoint.
+//
+// Idempotency:
+//   Clients SHOULD send an `Idempotency-Key` header (UUID). When present,
+//   the server caches the response for 24h keyed by (user_id, key) and
+//   replays it on retry instead of creating a second report. This makes
+//   the offline-queue retry path safe: a network blip right after the
+//   server writes but before the client receives 201 will not double-log.
 
 import { z } from "zod";
 import { requireUser, jsonError } from "../../_lib/auth.js";
@@ -34,12 +41,23 @@ const Body = z.object({
     .max(20),
 });
 
+const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9_\-:.]{8,128}$/;
+
 export const POST = async (req: Request): Promise<Response> => {
   initSentry();
 
   const userOrError = await requireUser(req);
   if (userOrError instanceof Response) return userOrError;
   const user = userOrError;
+
+  // Idempotency-Key: optional but recommended. Format is permissive enough
+  // for UUIDs and most client-generated tokens; reject anything that smells
+  // like an injection attempt (whitespace, quotes, length).
+  const idempotencyKeyRaw = req.headers.get("idempotency-key");
+  const idempotencyKey =
+    idempotencyKeyRaw && IDEMPOTENCY_KEY_RE.test(idempotencyKeyRaw)
+      ? idempotencyKeyRaw
+      : null;
 
   let body: z.infer<typeof Body>;
   try {
@@ -49,6 +67,29 @@ export const POST = async (req: Request): Promise<Response> => {
   }
 
   const supabase = serviceClient();
+
+  // Replay cached response if the client retried with the same key.
+  if (idempotencyKey) {
+    const { data: cached, error: cacheErr } = await supabase
+      .from("idempotency_keys")
+      .select("status_code, response_body")
+      .eq("user_id", user.id)
+      .eq("key", idempotencyKey)
+      .maybeSingle();
+    if (cacheErr) {
+      // Don't fail the request on a cache lookup error — fall through and
+      // do the write. Worst case we get a duplicate, which is recoverable.
+      Sentry.captureException(cacheErr);
+    } else if (cached) {
+      return new Response(JSON.stringify(cached.response_body), {
+        status: cached.status_code,
+        headers: {
+          "content-type": "application/json",
+          "idempotent-replay": "true",
+        },
+      });
+    }
+  }
 
   // Resolve term codes → term ids. One round-trip.
   const codes = body.responses.map((r) => r.pro_ctcae_code);
@@ -121,20 +162,35 @@ export const POST = async (req: Request): Promise<Response> => {
     .filter((g) => g.composite_grade === 3)
     .map((g) => ({ term_code: g.pro_ctcae_code, body_location: g.body_location }));
 
-  return new Response(
-    JSON.stringify(
-      {
-        ok: true,
-        report_id: report.id,
-        responses_written: responseRows.length,
-        severe_responses: severe,
-        guidance: severe.length > 0 ? EMERGENCY_GUIDANCE : null,
-      },
-      null,
-      2,
-    ),
-    { status: 201, headers: { "content-type": "application/json" } },
-  );
+  const responseBody = {
+    ok: true,
+    report_id: report.id,
+    responses_written: responseRows.length,
+    severe_responses: severe,
+    guidance: severe.length > 0 ? EMERGENCY_GUIDANCE : null,
+  };
+
+  // Cache the response so a retry replays it instead of double-writing.
+  // We swallow any cache-write error — duplicates are recoverable, but
+  // never block the original write.
+  if (idempotencyKey) {
+    const { error: cacheWriteErr } = await supabase
+      .from("idempotency_keys")
+      .insert({
+        user_id: user.id,
+        key: idempotencyKey,
+        status_code: 201,
+        response_body: responseBody,
+      });
+    if (cacheWriteErr && !String(cacheWriteErr.message).includes("duplicate")) {
+      Sentry.captureException(cacheWriteErr);
+    }
+  }
+
+  return new Response(JSON.stringify(responseBody, null, 2), {
+    status: 201,
+    headers: { "content-type": "application/json" },
+  });
 };
 
 const EMERGENCY_GUIDANCE = {

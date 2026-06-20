@@ -2,11 +2,14 @@
 // symptom report in under 30 seconds. Backed by VocabRepository for the panel
 // of conditions+terms and SymptomRepository for offline-first submission.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/result/result.dart';
+import '../../core/voice/speech_service.dart';
 import '../../data/models/condition.dart';
 import '../../data/repositories/symptom_repository.dart';
 import '../../data/repositories/vocab_repository.dart';
@@ -123,6 +126,13 @@ class _QuickLogFormState extends ConsumerState<_QuickLogForm> {
   String? _error;
   String? _emergencyGuidance;
 
+  // ── SYM-05 voice input state ──
+  bool _speechReady = false;     // init() returned true (plugin available)
+  bool _isListening = false;     // actively listening right now
+  bool _hadFinalBefore = false;  // last utterance for this mic session ended in a final
+  int _lastPartialLength = 0;    // char count of the partial currently appended to notes
+  StreamSubscription<SpeechEvent>? _speechSub;
+
   List<VocabSymptomTerm> get _termsForCondition {
     final id = _selectedConditionId;
     if (id == null) return const [];
@@ -133,7 +143,97 @@ class _QuickLogFormState extends ConsumerState<_QuickLogForm> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _initSpeech();
+  }
+
+  Future<void> _initSpeech() async {
+    final service = ref.read(speechServiceProvider);
+    final ok = await service.init();
+    if (!mounted) return;
+    setState(() => _speechReady = ok);
+    if (ok) {
+      _speechSub = service.events.listen(_onSpeechEvent);
+    }
+  }
+
+  void _onSpeechEvent(SpeechEvent event) {
+    if (!mounted) return;
+    switch (event) {
+      case SpeechPartial(:final text):
+        setState(() {
+          _notes.text = appendTranscript(
+            _notes.text,
+            text,
+            isFinal: false,
+            hadFinalBefore: _hadFinalBefore,
+            prevPartialLength: _lastPartialLength,
+          );
+          _lastPartialLength = text.trimLeft().length;
+          // Keep cursor at the end so the user sees the live partial.
+          _notes.selection = TextSelection.collapsed(
+            offset: _notes.text.length,
+          );
+        });
+      case SpeechFinal(:final text):
+        setState(() {
+          _notes.text = appendTranscript(
+            _notes.text,
+            text,
+            isFinal: true,
+            hadFinalBefore: _hadFinalBefore,
+            prevPartialLength: _lastPartialLength,
+          );
+          _notes.selection = TextSelection.collapsed(
+            offset: _notes.text.length,
+          );
+          _hadFinalBefore = true;
+          _lastPartialLength = 0; // reset for the next utterance
+          _isListening = false;
+          _source = 'voice';
+        });
+      case SpeechErrorEvent(:final reason):
+        setState(() {
+          _isListening = false;
+          _hadFinalBefore = false;
+          _lastPartialLength = 0;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Voice input: $reason')),
+        );
+      case SpeechStopped():
+        setState(() {
+          _isListening = false;
+          _hadFinalBefore = false;
+          _lastPartialLength = 0;
+        });
+    }
+  }
+
+  Future<void> _toggleMic() async {
+    final service = ref.read(speechServiceProvider);
+    if (_isListening) {
+      await service.stop();
+      // stop() triggers SpeechFinal on the next event tick.
+    } else {
+      // New mic session: reset all per-session state so the next partial
+      // starts a fresh segment instead of replacing prior dictation.
+      setState(() {
+        _hadFinalBefore = false;
+        _lastPartialLength = 0;
+      });
+      final localeId = await service.pickDeviceLocaleId();
+      await service.startListening(localeId: localeId);
+      if (mounted) setState(() => _isListening = true);
+    }
+  }
+
+  @override
   void dispose() {
+    // Cancel any in-flight listen before tearing down the widget.
+    ref.read(speechServiceProvider).cancel();
+    _speechSub?.cancel();
     _notes.dispose();
     super.dispose();
   }
@@ -261,19 +361,38 @@ class _QuickLogFormState extends ConsumerState<_QuickLogForm> {
                 label: Text('Caregiver'),
                 icon: Icon(Icons.support_agent_outlined),
               ),
+              ButtonSegment(
+                value: 'voice',
+                label: Text('Voice'),
+                icon: Icon(Icons.mic_none),
+              ),
             ],
             selected: {_source},
             onSelectionChanged: (s) => setState(() => _source = s.first),
           ),
           const SizedBox(height: Space.s6),
-          Text('Notes (optional)', style: t.textTheme.titleSmall),
+          Row(
+            children: [
+              Text('Notes (optional)', style: t.textTheme.titleSmall),
+              const SizedBox(width: Space.s2),
+              if (_isListening) const _MicPulseDot(),
+            ],
+          ),
           const SizedBox(height: Space.s2),
           TextField(
             controller: _notes,
             maxLines: 3,
             maxLength: 4000,
-            decoration: const InputDecoration(
-              hintText: 'Anything else worth telling your care team',
+            decoration: InputDecoration(
+              hintText: _isListening
+                  ? 'Listening — your words appear here'
+                  : 'Anything else worth telling your care team',
+              suffixIcon: _speechReady
+                  ? _MicButton(
+                      isListening: _isListening,
+                      onTap: _toggleMic,
+                    )
+                  : null,
             ),
           ),
         ],
@@ -492,6 +611,77 @@ class _EmergencyGuidanceCardState extends State<_EmergencyGuidanceCard>
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── Mic button + listening indicator (SYM-05) ──────────────────────────────
+
+class _MicButton extends StatelessWidget {
+  const _MicButton({required this.isListening, required this.onTap});
+  final bool isListening;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isListening ? SeverityColors.severe : Neutrals.slate;
+    return IconButton(
+      onPressed: onTap,
+      tooltip: isListening ? 'Stop dictating' : 'Dictate notes',
+      icon: Icon(
+        isListening ? Icons.stop_circle_outlined : Icons.mic_none,
+        color: color,
+      ),
+    );
+  }
+}
+
+/// Tiny animated dot beside the "Notes" label while listening. Sized 8×8
+/// so it doesn't compete with the severity pulse; just enough to confirm
+/// to the user that the mic is hot.
+class _MicPulseDot extends StatefulWidget {
+  const _MicPulseDot();
+
+  @override
+  State<_MicPulseDot> createState() => _MicPulseDotState();
+}
+
+class _MicPulseDotState extends State<_MicPulseDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, _) {
+        final v = _ctrl.value; // 0..1..0
+        return Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: SeverityColors.severe.withValues(
+              alpha: 0.55 + 0.45 * v,
+            ),
+          ),
+        );
+      },
     );
   }
 }

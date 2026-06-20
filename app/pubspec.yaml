@@ -78,6 +78,10 @@ dependencies:
   # HealthKit (iOS) + Health Connect (Android) reads (HK-01).
   health: ^13.3.1
 
+  # Voice input for free-text notes (SYM-05). Uses the OS speech
+  # recognizer: SFSpeechRecognizer on iOS, RecognitionService on Android.
+  speech_to_text: ^7.4.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

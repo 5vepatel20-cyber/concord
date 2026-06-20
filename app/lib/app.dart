@@ -25,6 +25,8 @@ import 'features/auth/forgot_password_screen.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/auth/sign_up_screen.dart';
 import 'features/home/home_screen.dart';
+import 'features/medications/medications_screen.dart';
+import 'features/medications/add_medication_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/report/recent_reports_screen.dart';
@@ -106,6 +108,16 @@ GoRouter _buildRouter(WidgetRef ref) {
         builder: (_, state) => ReportDetailScreen(
           reportId: state.pathParameters['id']!,
         ),
+      ),
+
+      // Medications (MED-01..06). Full-screen push from Profile.
+      GoRoute(
+        path: '/medications',
+        builder: (_, _) => const MedicationsScreen(),
+      ),
+      GoRoute(
+        path: '/medications/add',
+        builder: (_, _) => const AddMedicationScreen(),
       ),
 
       // Authenticated shell — 5 branches.

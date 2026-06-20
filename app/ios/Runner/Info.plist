@@ -76,6 +76,14 @@
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Concord does not write to Apple Health today. If that changes, you will be asked again before any data is saved.</string>
 
+	<!-- Voice input for free-text notes (SYM-05). Both strings are
+	     mandatory: the system will refuse recognition if either is
+	     missing, with no in-app signal of why. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Concord uses your microphone so you can dictate notes for your care team instead of typing. Audio is processed by your device and never recorded.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Concord uses on-device speech recognition to transcribe your dictated notes. No audio leaves your phone.</string>
+
 	<!-- Universal Links host placeholder; wired in once the marketing
 	     domain (concord.app) is registered. -->
 	<key>NSUserActivityTypes</key>

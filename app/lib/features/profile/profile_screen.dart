@@ -54,6 +54,21 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ]),
 
+            // Medications (MED-01..06).
+            const SizedBox(height: Space.s5),
+            _SectionHeader('Medications'),
+            _SettingsCard(children: [
+              ListTile(
+                leading: const Icon(Icons.medication_outlined),
+                title: const Text('Manage medications'),
+                subtitle: const Text(
+                  'Track what you take, when, and whether doses were taken or missed.',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/medications'),
+              ),
+            ]),
+
             // Reminders (SYM-03).
             const SizedBox(height: Space.s5),
             _SectionHeader('Reminders'),

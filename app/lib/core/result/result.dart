@@ -2,6 +2,8 @@
 // Backend returns a uniform `{error:{code,message}}` envelope; we lift it into
 // Result so repository methods are safe to compose and force the UI to handle errors.
 
+import 'dart:async';
+
 sealed class Result<T, E> {
   const Result();
 
@@ -25,6 +27,18 @@ sealed class Result<T, E> {
         Ok<T, E>(:final value) => Ok<R, E>(f(value)),
         Err<T, E>(:final error) => Err<R, E>(error),
       };
+
+  /// Pattern-match. `ok` may return a Future to support async fallbacks
+  /// (e.g. on error, fall back to a cached read).
+  Future<R> when<R>({
+    required FutureOr<R> Function(T) ok,
+    required FutureOr<R> Function(E) err,
+  }) async {
+    return switch (this) {
+      Ok<T, E>(:final value) => await ok(value),
+      Err<T, E>(:final error) => await err(error),
+    };
+  }
 }
 
 class Ok<T, E> extends Result<T, E> {

@@ -21,10 +21,10 @@ packages:
     dependency: transitive
     description:
       name: analyzer_plugin
-      sha256: "1d460d14e3c2ae36dc2b32cef847c4479198cf87704f63c3c3c8150ee50c3916"
+      sha256: a5ab7590c27b779f3d4de67f31c4109dbe13dd7339f86461a6f2a8ab2594d8ce
       url: "https://pub.dev"
     source: hosted
-    version: "0.12.0"
+    version: "0.13.4"
   app_links:
     dependency: "direct main"
     description:
@@ -261,10 +261,10 @@ packages:
     dependency: transitive
     description:
       name: custom_lint_core
-      sha256: "6dcee8a017181941c51a110da7e267c1d104dc74bec8862eeb8c85b5c8759a9e"
+      sha256: "31110af3dde9d29fb10828ca33f1dce24d2798477b167675543ce3d208dee8be"
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.1"
+    version: "0.7.5"
   custom_lint_visitor:
     dependency: transitive
     description:
@@ -1141,6 +1141,30 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.10.2"
+  speech_to_text:
+    dependency: "direct main"
+    description:
+      name: speech_to_text
+      sha256: "75587f7400f485fdf166beacd471549d98fe5d58e634f708916bb65dec05d6a4"
+      url: "https://pub.dev"
+    source: hosted
+    version: "7.4.0"
+  speech_to_text_platform_interface:
+    dependency: transitive
+    description:
+      name: speech_to_text_platform_interface
+      sha256: a7e16e02853853ed7534ac2bde9a1c4f39c8879970a7974ac6ff832d4bdaa4b0
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.4.0"
+  speech_to_text_windows:
+    dependency: transitive
+    description:
+      name: speech_to_text_windows
+      sha256: "2d1d10565b23262386b453b33656299608dc7a66784453735d6c1318f13f44d7"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.1"
   sqlite3:
     dependency: transitive
     description:
