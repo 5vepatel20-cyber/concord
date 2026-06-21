@@ -14,6 +14,8 @@
 //   - concord://report/<id> → /report/:id
 //   - concord://atlas → /atlas
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -25,6 +27,7 @@ import 'features/auth/forgot_password_screen.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/auth/sign_up_screen.dart';
 import 'features/home/home_screen.dart';
+import 'features/log/log_landing_screen.dart';
 import 'features/medications/medications_screen.dart';
 import 'features/medications/add_medication_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
@@ -43,22 +46,41 @@ class ConcordApp extends ConsumerStatefulWidget {
 
 class _ConcordAppState extends ConsumerState<ConcordApp> {
   late final GoRouter _router;
+  StreamSubscription<String>? _tapSub;
 
   @override
   void initState() {
     super.initState();
     _router = _buildRouter(ref);
 
-    // Cold-start deep link: if the app was launched from a notification
-    // tap, the NotificationService recorded the payload before runApp.
-    // Schedule a post-frame jump so the router is ready.
     final notif = ref.read(notificationServiceProvider);
-    final payload = notif.initialPayload;
-    if (payload != null && payload.isNotEmpty) {
+
+    // Cold-start deep link: if the app was launched from a notification
+    // tap, NotificationService recorded the payload before runApp.
+    // Schedule a post-frame jump so the router is ready.
+    final cold = notif.initialPayload;
+    if (cold != null && cold.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _router.go(payload);
+        _router.go(cold);
       });
     }
+
+    // Warm-start deep link: subscribe to taps that fire while the app
+    // is already running. Each event is a notification payload (a
+    // route path like '/log' or '/medications'). The router handles
+    // auth redirects so a tap before sign-in lands on /sign-in.
+    _tapSub = notif.tapStream.listen(_routeFor);
+  }
+
+  void _routeFor(String payload) {
+    if (!mounted) return;
+    _router.go(payload);
+  }
+
+  @override
+  void dispose() {
+    _tapSub?.cancel();
+    super.dispose();
   }
 
   @override
@@ -131,16 +153,13 @@ GoRouter _buildRouter(WidgetRef ref) {
               GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
             ],
           ),
-          // Log (opens the quick-log bottom sheet; landing is a hint)
+          // Log (opens the quick-log bottom sheet on mount, then
+          // routes to /home so the sheet is layered over the home tab)
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/log',
-                builder: (_, _) => const PlaceholderTab(
-                  title: 'Log a symptom',
-                  note: 'Tap the plus below to open the quick-log sheet from any tab. '
-                      'You can also tap the CTA on the home dashboard.',
-                ),
+                builder: (_, _) => const LogLandingScreen(),
               ),
             ],
           ),

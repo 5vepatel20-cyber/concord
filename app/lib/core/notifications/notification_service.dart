@@ -15,6 +15,7 @@
 //   - No PHI in the notification body. Title and body are static strings.
 //   - The payload is a deep-link path ("/log") only.
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -43,10 +44,20 @@ class NotificationService {
 
   bool _initialized = false;
   NotificationAppLaunchDetails? _launchDetails;
+  final StreamController<String> _tapController =
+      StreamController<String>.broadcast();
 
   /// Returns the payload of the notification that launched the app (if any).
   /// Used by main.dart to navigate to the right screen on cold start.
   String? get initialPayload => _launchDetails?.notificationResponse?.payload;
+
+  /// Stream of notification tap payloads for warm-start (app already
+  /// running) taps. Each event is the notification's `payload` string.
+  /// The router listens to this and routes accordingly. See:
+  ///   - [kDailyCheckInPayload] ('/log')
+  ///   - [kMedicationReminderPayload] ('/medications') — in
+  ///     medication_reminder_service.dart.
+  Stream<String> get tapStream => _tapController.stream;
 
   /// Initialize the plugin. Safe to call multiple times — only the first
   /// call does work.
@@ -180,11 +191,12 @@ class NotificationService {
   }
 
   void _onTap(NotificationResponse response) {
-    // The actual navigation happens at the router level via
-    // [initialPayload] (cold start) or a stream we expose here (warm start).
-    // For 1.0 we just log; the settings screen re-reads [initialPayload]
-    // on next build and routes from there.
-    debugPrint('[notif] tapped: payload=${response.payload}');
+    final payload = response.payload;
+    if (payload == null || payload.isEmpty) return;
+    // Forward to the router via the broadcast stream. The app shell
+    // (see app.dart) listens to this and calls GoRouter.go(payload).
+    _tapController.add(payload);
+    debugPrint('[notif] tapped: payload=$payload');
   }
 }
 

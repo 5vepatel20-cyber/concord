@@ -6,6 +6,7 @@
 // 8pm" when it's already 9pm).
 
 import 'package:concord/core/notifications/notification_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
@@ -63,6 +64,34 @@ void main() {
       expect(next.month, 7);
       expect(next.day, 1);
       expect(next.hour, 8);
+    });
+  });
+
+  group('tapStream', () {
+    // We don't exercise the underlying plugin — just the broadcast
+    // behavior of [tapStream]. The router listens to it for warm-start
+    // deep links; the contract is "every emitted payload corresponds
+    // to a tap that should route the user to that path".
+
+    test('is broadcast — multiple listeners can subscribe at once', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final svc = container.read(notificationServiceProvider);
+      expect(svc.tapStream.isBroadcast, true);
+    });
+
+    test('exposes the daily check-in payload as a path', () {
+      // The router is hard-wired to this string; pinning it in a test
+      // catches accidental renames.
+      expect(kDailyCheckInPayload, '/log');
+      expect(kDailyCheckInPayload.startsWith('/'), true);
+    });
+
+    test('ProviderContainer resolves the service without error', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final svc = container.read(notificationServiceProvider);
+      expect(svc, isNotNull);
     });
   });
 }
