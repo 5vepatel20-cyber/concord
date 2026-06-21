@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/clock/clock.dart';
+import '../../core/notifications/medication_reminder_service.dart';
 import '../../data/models/medication.dart';
 import '../../data/repositories/medication_repository.dart';
 import '../../theme/tokens.dart';
@@ -33,6 +34,11 @@ class _MedicationsListController extends AsyncNotifier<List<Medication>> {
       // Fire-and-forget refresh; the provider will re-emit when done.
       // ignore: discarded_futures
       _refresh();
+      // Re-sync medication reminders using the cached list. Boot path
+      // also calls this, but calling it here covers the case where the
+      // user opens the medications screen first thing on a cold start.
+      // ignore: discarded_futures
+      _resyncReminders(cached);
       return cached;
     }
     return _refreshReturn();
@@ -50,10 +56,20 @@ class _MedicationsListController extends AsyncNotifier<List<Medication>> {
   Future<List<Medication>> _refreshReturn() async {
     final repo = ref.read(medicationRepositoryProvider);
     final res = await repo.fetchAll(onlyActive: true);
-    return res.when(
-      ok: (m) => m,
+    final meds = await res.when(
+      ok: (m) async {
+        // Resync reminders with the fresh list (server is authoritative).
+        // ignore: discarded_futures
+        _resyncReminders(m);
+        return m;
+      },
       err: (_) async => repo.cachedMeds(),
     );
+    return meds;
+  }
+
+  Future<void> _resyncReminders(List<Medication> meds) async {
+    await ref.read(medicationReminderServiceProvider).resyncAll(meds);
   }
 }
 

@@ -16,8 +16,10 @@ import 'app.dart';
 import 'core/config/env.dart';
 import 'core/monitoring/posthog_init.dart';
 import 'core/monitoring/sentry_init.dart';
+import 'core/notifications/medication_reminder_service.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/sync/sync_service.dart';
+import 'data/repositories/medication_repository.dart';
 import 'data/supabase/supabase_provider.dart';
 import 'features/profile/settings_storage.dart';
 
@@ -67,6 +69,24 @@ Future<void> main() async {
         enabled: true,
       );
     }
+
+    // Re-sync medication reminders from the cached list on cold start.
+    // The medications screen does the same on mount, but doing it here
+    // ensures reminders fire even before the user opens that tab — so a
+    // 8am dose reminder at 8:01am still gets scheduled for today.
+    // ignore: discarded_futures
+    () async {
+      try {
+        final cached = await container
+            .read(medicationRepositoryProvider)
+            .cachedMeds();
+        await container
+            .read(medicationReminderServiceProvider)
+            .resyncAll(cached);
+      } catch (e) {
+        debugPrint('[med-reminder] boot resync failed: $e');
+      }
+    }();
 
     runApp(
       UncontrolledProviderScope(

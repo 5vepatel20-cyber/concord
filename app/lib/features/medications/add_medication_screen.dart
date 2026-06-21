@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/notifications/medication_reminder_service.dart';
 import '../../core/result/result.dart';
 import '../../data/models/medication.dart';
 import '../../data/repositories/medication_repository.dart';
@@ -78,6 +79,15 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
     if (!mounted) return;
     switch (res) {
       case Ok():
+        // Schedule a reminder for the new med right away. We pass the
+        // draft (id == null when offline) — the service will use
+        // whatever id we have and resyncAll on next boot will reconcile.
+        // ignore: discarded_futures
+        () async {
+          final reminder = ref.read(medicationReminderServiceProvider);
+          await reminder.ensurePermission();
+          await reminder.scheduleFor(draft);
+        }();
         // Refresh the list so the new med shows up immediately.
         // ignore: discarded_futures
         ref.read(medicationsListProvider.notifier).refresh();
