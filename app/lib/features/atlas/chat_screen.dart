@@ -11,6 +11,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/network/sse_client.dart';
 import '../../data/repositories/atlas_repository.dart';
@@ -59,10 +60,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final cancel = CancelToken();
     _cancel = cancel;
-    final stream = ref.read(atlasRepositoryProvider).sendMessage(
-          history: _messages
-              .where((m) => !m.streaming)
-              .toList(growable: false),
+    final stream = ref
+        .read(atlasRepositoryProvider)
+        .sendMessage(
+          history: _messages.where((m) => !m.streaming).toList(growable: false),
         );
     _sub = stream.listen(
       (ev) {
@@ -139,6 +140,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       appBar: AppBar(
         title: const Text('Atlas'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.event_note_outlined),
+            tooltip: 'Visit Prep',
+            onPressed: () => context.push('/atlas/visit-prep'),
+          ),
           if (_busy)
             IconButton(
               icon: const Icon(Icons.stop_circle_outlined),
@@ -154,7 +160,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               child: ListView.builder(
                 controller: _scroll,
                 padding: const EdgeInsets.fromLTRB(
-                  Space.s4, Space.s3, Space.s4, Space.s2,
+                  Space.s4,
+                  Space.s3,
+                  Space.s4,
+                  Space.s2,
                 ),
                 itemCount: _messages.length,
                 itemBuilder: (context, i) {
@@ -170,14 +179,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 color: SeverityColors.severe.withValues(alpha: 0.08),
                 child: Text(
                   _error!,
-                  style: t.textTheme.bodySmall?.copyWith(color: SeverityColors.severe),
+                  style: t.textTheme.bodySmall?.copyWith(
+                    color: SeverityColors.severe,
+                  ),
                 ),
               ),
-            _Composer(
-              controller: _input,
-              busy: _busy,
-              onSend: _send,
-            ),
+            _Composer(controller: _input, busy: _busy, onSend: _send),
           ],
         ),
       ),
@@ -193,17 +200,16 @@ class _MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     final isUser = message.role == 'user';
-    final bg = isUser
-        ? t.colorScheme.primaryContainer
-        : Neutrals.surface;
+    final bg = isUser ? t.colorScheme.primaryContainer : Neutrals.surface;
     final fg = isUser
         ? t.colorScheme.onPrimaryContainer
         : t.colorScheme.onSurface;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: Space.s1),
       child: Row(
-        mainAxisAlignment:
-            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         children: [
           ConstrainedBox(
             constraints: BoxConstraints(
@@ -211,7 +217,8 @@ class _MessageBubble extends StatelessWidget {
             ),
             child: Container(
               padding: const EdgeInsets.symmetric(
-                horizontal: Space.s3, vertical: Space.s2,
+                horizontal: Space.s3,
+                vertical: Space.s2,
               ),
               decoration: BoxDecoration(
                 color: bg,
@@ -220,7 +227,10 @@ class _MessageBubble extends StatelessWidget {
               ),
               child: message.streaming && message.text.isEmpty
                   ? const _TypingDot()
-                  : Text(message.text, style: t.textTheme.bodyMedium?.copyWith(color: fg)),
+                  : Text(
+                      message.text,
+                      style: t.textTheme.bodyMedium?.copyWith(color: fg),
+                    ),
             ),
           ),
         ],
@@ -263,13 +273,15 @@ class _TypingDotState extends State<_TypingDot>
           mainAxisSize: MainAxisSize.min,
           children: List.generate(3, (i) {
             final phase = (_c.value - i * 0.15).clamp(0.0, 1.0);
-            final opacity = 0.3 + 0.7 * (1 - (phase - 0.5).abs() * 2).clamp(0.0, 1.0);
+            final opacity =
+                0.3 + 0.7 * (1 - (phase - 0.5).abs() * 2).clamp(0.0, 1.0);
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),
               child: Opacity(
                 opacity: opacity,
                 child: Container(
-                  width: 6, height: 6,
+                  width: 6,
+                  height: 6,
                   decoration: BoxDecoration(
                     color: Neutrals.slate,
                     shape: BoxShape.circle,
@@ -285,7 +297,11 @@ class _TypingDotState extends State<_TypingDot>
 }
 
 class _Composer extends StatelessWidget {
-  const _Composer({required this.controller, required this.busy, required this.onSend});
+  const _Composer({
+    required this.controller,
+    required this.busy,
+    required this.onSend,
+  });
   final TextEditingController controller;
   final bool busy;
   final VoidCallback onSend;
@@ -294,7 +310,10 @@ class _Composer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(
-        Space.s4, Space.s2, Space.s4, Space.s4,
+        Space.s4,
+        Space.s2,
+        Space.s4,
+        Space.s4,
       ),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,

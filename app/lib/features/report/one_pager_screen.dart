@@ -138,6 +138,12 @@ class _Body extends StatelessWidget {
           const SizedBox(height: Space.s2),
           _NewOrWorsening(entries: report.newOrWorsening),
         ],
+        if (report.narrative != null && report.narrative!.isNotEmpty) ...[
+          const SizedBox(height: Space.s6),
+          _SectionHeader(title: 'Atlas Summary'),
+          const SizedBox(height: Space.s2),
+          _NarrativeCard(narrative: report.narrative!),
+        ],
         const SizedBox(height: Space.s6),
         _SectionHeader(title: 'Medication Adherence'),
         const SizedBox(height: Space.s2),
@@ -149,6 +155,34 @@ class _Body extends StatelessWidget {
           _VitalsCard(vitals: report.vitals),
         ],
       ],
+    );
+  }
+}
+
+class _NarrativeCard extends StatelessWidget {
+  const _NarrativeCard({required this.narrative});
+  final String narrative;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(Space.s4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('🤖', style: TextStyle(fontSize: 20)),
+            const SizedBox(width: Space.s3),
+            Expanded(
+              child: Text(
+                narrative,
+                style: t.textTheme.bodyMedium?.copyWith(height: 1.5),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

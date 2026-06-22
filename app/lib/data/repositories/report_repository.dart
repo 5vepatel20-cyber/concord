@@ -64,6 +64,7 @@ class OnePagerReport {
   final List<NewOrWorseningEntry> newOrWorsening;
   final MedicationAdherence medicationAdherence;
   final List<VitalsEntry> vitals;
+  final String? narrative;
 
   OnePagerReport({
     required this.generatedAt,
@@ -73,6 +74,7 @@ class OnePagerReport {
     required this.newOrWorsening,
     required this.medicationAdherence,
     required this.vitals,
+    this.narrative,
   });
 
   factory OnePagerReport.fromJson(Map<String, dynamic> json) {
@@ -184,6 +186,7 @@ class OnePagerReport {
         overallPct: (adherenceJson['overall_pct'] as num?)?.toInt(),
       ),
       vitals: vitals,
+      narrative: json['narrative'] as String?,
     );
   }
 
@@ -415,10 +418,12 @@ class ReportRepository {
 
     final response = await http
         .post(
-          Uri.parse('$apiBase/api/reports/generate?days=$days'),
+          Uri.parse(
+            '$apiBase/api/reports/generate?days=$days&include_narrative=true',
+          ),
           headers: {'Authorization': 'Bearer ${session.accessToken}'},
         )
-        .timeout(const Duration(seconds: 30));
+        .timeout(const Duration(seconds: 60));
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw HttpException(

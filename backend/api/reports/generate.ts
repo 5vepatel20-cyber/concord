@@ -16,6 +16,7 @@ import { requireUser } from "../../_lib/auth.js";
 import { serviceClient } from "../../_lib/supabase.js";
 import { initSentry, Sentry } from "../../_lib/sentry.js";
 import { corsed, preflight, corsedJsonError } from "../../_lib/cors.js";
+import { getAIProvider } from "../../_lib/ai/provider.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -236,7 +237,7 @@ export const POST = async (req: Request): Promise<Response> => {
 
   const overallAdherencePct = adherenceStats.length > 0 ? Math.round(adherenceStats.reduce((s, a) => s + a.adherence_pct, 0) / adherenceStats.length) : null;
 
-  const payload = {
+  const payload: Record<string, unknown> = {
     generated_at: new Date().toISOString(),
     period_days: query.days,
     patient_id: user.id,
@@ -247,7 +248,58 @@ export const POST = async (req: Request): Promise<Response> => {
     vitals: [...vitalsByDate.values()].sort((a, b) => a.date.localeCompare(b.date)),
   };
 
-  // ── 8. Save to report table ─────────────────────────────────────
+  // ── 8. Atlas narrative (RPT-04) ────────────────────────────────
+  if (query.include_narrative) {
+    try {
+      const provider = getAIProvider();
+      const worstLine = worstEpisodes.length > 0
+        ? `Worst symptoms: ${worstEpisodes.map((e) => `${e.term_name} (avg grade ${e.grade})`).join(", ")}.`
+        : "No significant symptom episodes.";
+      const newLine = newOrWorsening.length > 0
+        ? `Changes detected: ${newOrWorsening.map((e) => `${e.term_name} is ${e.direction} (${e.prior_avg_grade} → ${e.current_avg_grade})`).join(", ")}.`
+        : "No new or worsening symptoms.";
+      const medLine = overallAdherencePct != null
+        ? `Medication adherence: ${overallAdherencePct}%.`
+        : "No medication data.";
+
+      let narrative = "";
+      for await (const chunk of provider.chat({
+        messages: [
+          {
+            role: "system",
+            content: [
+              "You are Atlas, a clinical-grade AI companion for people in active cancer treatment.",
+              "Write a brief (3-5 sentence) plain-language narrative summary of the patient's symptom report.",
+              "Focus on what matters most: what changed, what's severe, and medication patterns.",
+              "Use warm, clear language. Grade 6 reading level. Never diagnose or prescribe.",
+            ].join(" "),
+          },
+          {
+            role: "user",
+            content: [
+              `This patient's report covers the last ${query.days} days.`,
+              worstLine,
+              newLine,
+              medLine,
+              `Total symptoms tracked: ${heatmap.length} entries across ${termGradeCounts.size} different symptom types.`,
+              "Write a brief narrative summary a patient could share with their doctor:",
+            ].join("\n"),
+          },
+        ],
+        model: "flash",
+        temperature: 0.5,
+        maxOutputTokens: 512,
+      })) {
+        narrative += chunk.text;
+      }
+      payload.narrative = narrative.trim();
+    } catch (e) {
+      Sentry.captureException(e);
+      payload.narrative = null;
+    }
+  }
+
+  // ── 9. Save to report table ─────────────────────────────────────
   const { data: saved, error: saveErr } = await supabase
     .from("report")
     .insert({

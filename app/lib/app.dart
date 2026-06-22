@@ -22,6 +22,7 @@ import 'package:go_router/go_router.dart';
 
 import 'core/notifications/notification_service.dart';
 import 'features/atlas/chat_screen.dart';
+import 'features/atlas/visit_prep_screen.dart';
 import 'features/auth/auth_controller.dart';
 import 'features/auth/forgot_password_screen.dart';
 import 'features/auth/sign_in_screen.dart';
@@ -176,6 +177,12 @@ GoRouter _buildRouter(WidgetRef ref) {
       GoRoute(
         path: '/vitals/manual',
         builder: (_, _) => const ManualEntryScreen(),
+      ),
+
+      // Visit prep (RPT-05). Full-screen push from Atlas tab.
+      GoRoute(
+        path: '/atlas/visit-prep',
+        builder: (_, _) => const VisitPrepScreen(),
       ),
 
       // Authenticated shell — 5 branches.
