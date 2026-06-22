@@ -45,6 +45,9 @@ export function Nav() {
       <a href="/billing" style={linkStyle}>
         RTM Billing
       </a>
+      <a href="/compliance" style={linkStyle}>
+        EOM Compliance
+      </a>
 
       <div style={{ flex: 1 }} />
 

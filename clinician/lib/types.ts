@@ -48,6 +48,25 @@ export interface RtmPatientSummary {
   cpt_98975_billed: boolean;
 }
 
+export interface EomPatientCompliance {
+  id: string;
+  full_name: string;
+  primary_diagnosis: string;
+  expected_reports: number;
+  actual_reports: number;
+  compliance_pct: number;
+  last_report_at: string | null;
+  days_since_last_report: number | null;
+}
+
+export interface EomMonthlySummary {
+  month: number;
+  year: number;
+  monthName: string;
+  avg_compliance_pct: number;
+  patient_count: number;
+}
+
 export interface RtmBillingPeriod {
   id: string;
   patient_id: string;
