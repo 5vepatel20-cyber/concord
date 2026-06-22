@@ -32,6 +32,7 @@ import 'features/medications/medications_screen.dart';
 import 'features/medications/add_medication_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/profile/profile_screen.dart';
+import 'features/profile/settings_storage.dart';
 import 'features/report/recent_reports_screen.dart';
 import 'features/report/report_detail_screen.dart';
 import 'features/tab_shell.dart';
@@ -116,6 +117,15 @@ GoRouter _buildRouter(WidgetRef ref) {
         return isPublic ? null : '/sign-in';
       }
       if (isPublic) return '/home';
+
+      // Onboarding guard: redirect to /onboarding until consent is stored.
+      if (loc != '/onboarding') {
+        final settings = ref.read(settingsControllerProvider);
+        if (settings is AsyncData && settings.value?.consentVersion == null) {
+          return '/onboarding';
+        }
+      }
+
       return null;
     },
     routes: [

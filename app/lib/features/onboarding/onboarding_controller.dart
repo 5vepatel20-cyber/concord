@@ -48,6 +48,7 @@ class OnboardingState {
     this.treatmentStatus,
     this.dateOfBirth,
     this.sexAtBirth = '',
+    this.connectHealthEnabled = true,
     this.consentAccepted = false,
   });
 
@@ -60,6 +61,7 @@ class OnboardingState {
   final TreatmentStatus? treatmentStatus;
   final DateTime? dateOfBirth;
   final String sexAtBirth;
+  final bool connectHealthEnabled;
   final bool consentAccepted;
 
   static const totalSteps = 6;
@@ -74,6 +76,7 @@ class OnboardingState {
     TreatmentStatus? treatmentStatus,
     DateTime? dateOfBirth,
     String? sexAtBirth,
+    bool? connectHealthEnabled,
     bool? consentAccepted,
     bool clearDiagnosisDate = false,
     bool clearDob = false,
@@ -94,6 +97,7 @@ class OnboardingState {
             : (treatmentStatus ?? this.treatmentStatus),
         dateOfBirth: clearDob ? null : (dateOfBirth ?? this.dateOfBirth),
         sexAtBirth: sexAtBirth ?? this.sexAtBirth,
+        connectHealthEnabled: connectHealthEnabled ?? this.connectHealthEnabled,
         consentAccepted: consentAccepted ?? this.consentAccepted,
       );
 
@@ -102,7 +106,8 @@ class OnboardingState {
   bool get isStep2Valid =>
       diagnosisDate != null && cancerStage.trim().isNotEmpty && treatmentStatus != null;
   bool get isStep3Valid => dateOfBirth != null && sexAtBirth.isNotEmpty;
-  // step 4 is skipped in 1.0
+  // step 4: HealthKit priming — always valid (informational)
+  bool get isStep4Valid => true;
   // step 5 requires consent
   bool get isStep5Valid => consentAccepted;
 
@@ -112,7 +117,7 @@ class OnboardingState {
       case 1: return isStep1Valid;
       case 2: return isStep2Valid;
       case 3: return isStep3Valid;
-      case 4: return true; // placeholder step
+      case 4: return isStep4Valid;
       case 5: return isStep5Valid;
     }
     return false;
@@ -154,6 +159,7 @@ class OnboardingController extends Notifier<OnboardingState> {
         clearDob: d == null,
       );
   void setSexAtBirth(String v) => state = state.copyWith(sexAtBirth: v);
+  void setConnectHealthEnabled(bool v) => state = state.copyWith(connectHealthEnabled: v);
   void setConsentAccepted(bool v) => state = state.copyWith(consentAccepted: v);
 }
 

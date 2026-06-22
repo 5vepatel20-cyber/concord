@@ -3,16 +3,20 @@
 //
 // Step layout:
 //   0 ONB-01 — full name
-//   1 ONB-02 — condition selection (coded)
-//   2 ONB-03 — diagnosis details (date, stage, treatment_status)
-//   3 ONB-04 — date of birth + sex_at_birth
-//   4 placeholder (caregiver invite — deferred to 1.1)
+//   1 ONB-01 — condition selection (coded)
+//   2 ONB-02 — diagnosis details (date, stage, treatment_status)
+//   3 ONB-03 — date of birth + sex_at_birth
+//   4 ONB-07 — HealthKit / Health Connect permission priming
 //   5 ONB-06 — consent + "not a medical device" disclaimer (versioned)
+
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 
+import '../../core/health/health_repository.dart';
 import '../../data/repositories/vocab_repository.dart';
 import '../../data/supabase/supabase_provider.dart';
 import '../../theme/tokens.dart';
@@ -45,7 +49,7 @@ class OnboardingScreen extends ConsumerWidget {
             1 => const _StepCondition(),
             2 => const _StepDiagnosis(),
             3 => const _StepDemographics(),
-            4 => const _StepCaregiverPlaceholder(),
+            4 => const _StepHealthPriming(),
             5 => const _StepConsent(),
             _ => const SizedBox.shrink(),
           },
@@ -313,26 +317,96 @@ String _sexLabel(String s) {
   return s;
 }
 
-// ── Step 4: caregiver placeholder ────────────────────────────────────────────
+// ── Step 4: HealthKit / Health Connect permission priming (ONB-07) ──────────
 
-class _StepCaregiverPlaceholder extends ConsumerWidget {
-  const _StepCaregiverPlaceholder();
+class _StepHealthPriming extends ConsumerWidget {
+  const _StepHealthPriming();
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    final state = ref.watch(onboardingControllerProvider);
+    return ListView(
       children: [
-        Text('Caregivers', style: t.textTheme.headlineSmall),
+        Text('Connect your health data', style: t.textTheme.headlineSmall),
         const SizedBox(height: Space.s2),
         Text(
-          'Soon you\'ll be able to invite a family member or care navigator to view your reports with you. For now, that\'s all set up by your care team.',
+          'Concord can read your Apple Health or Google Fit data to give you a fuller picture alongside your symptoms.',
           style: t.textTheme.bodyMedium?.copyWith(color: Neutrals.slate),
         ),
-        const Spacer(),
+        const SizedBox(height: Space.s5),
+        _HealthMetricTile(
+          icon: Icons.directions_walk,
+          title: 'Steps',
+          subtitle: 'See how your activity level changes with treatment.',
+        ),
+        const SizedBox(height: Space.s2),
+        _HealthMetricTile(
+          icon: Icons.favorite_outline,
+          title: 'Heart rate',
+          subtitle: 'Resting and average heart rate trends over time.',
+        ),
+        const SizedBox(height: Space.s2),
+        _HealthMetricTile(
+          icon: Icons.bedtime_outlined,
+          title: 'Sleep',
+          subtitle: 'Duration and quality — chemo often disrupts sleep.',
+        ),
+        const SizedBox(height: Space.s2),
+        _HealthMetricTile(
+          icon: Icons.monitor_weight_outlined,
+          title: 'Weight',
+          subtitle: 'Track weight changes that may signal fluid shifts or nutrition needs.',
+        ),
+        const SizedBox(height: Space.s5),
+        Text(
+          'You can always connect or disconnect health data later in Settings.',
+          style: t.textTheme.bodySmall?.copyWith(color: Neutrals.slate),
+        ),
+        const SizedBox(height: Space.s3),
+        SwitchListTile(
+          value: state.connectHealthEnabled,
+          onChanged: (v) => ref
+              .read(onboardingControllerProvider.notifier)
+              .setConnectHealthEnabled(v),
+          title: const Text('Connect health data now'),
+          contentPadding: EdgeInsets.zero,
+        ),
+        const SizedBox(height: Space.s5),
         FilledButton(
           onPressed: () => ref.read(onboardingControllerProvider.notifier).next(),
           child: const Text('Continue'),
+        ),
+      ],
+    );
+  }
+}
+
+class _HealthMetricTile extends StatelessWidget {
+  const _HealthMetricTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    return Row(
+      children: [
+        Icon(icon, color: t.colorScheme.primary, size: 24),
+        const SizedBox(width: Space.s3),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: t.textTheme.titleSmall),
+              const SizedBox(height: Space.s1),
+              Text(subtitle, style: t.textTheme.bodySmall?.copyWith(color: Neutrals.slate)),
+            ],
+          ),
         ),
       ],
     );
@@ -351,46 +425,60 @@ class _StepConsentState extends ConsumerState<_StepConsent> {
   bool _busy = false;
   String? _error;
 
-  static const _disclaimerVersion = '2026-06-19';
+  static const _disclaimerVersion = '2026-06-22';
 
   Future<void> _submit() async {
-    final state = ref.read(onboardingControllerProvider);
+    final s = ref.read(onboardingControllerProvider);
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      final supabase = ref.read(supabaseClientProvider);
-      final user = supabase.auth.currentUser;
-      if (user == null) throw StateError('Not signed in');
+      final apiBase = ref.read(apiBaseUrlProvider);
+      final session = ref.read(supabaseClientProvider).auth.currentSession;
+      if (session == null) throw StateError('Not signed in');
 
-      // 1. user row (full_name, dob, sex_at_birth, locale).
-      await supabase.from('user').upsert({
-        'id': user.id,
-        'email': user.email,
-        'full_name': state.fullName,
-        'date_of_birth': state.dateOfBirth?.toIso8601String().split('T').first,
-        'sex_at_birth': state.sexAtBirth,
-        'locale': 'en',
+      final dobStr = s.dateOfBirth?.toIso8601String().split('T').first;
+      final dxStr = s.diagnosisDate?.toIso8601String().split('T').first;
+      if (dobStr == null) throw StateError('Date of birth required');
+
+      final body = jsonEncode({
+        'full_name': s.fullName,
+        'date_of_birth': dobStr,
+        'sex_at_birth': s.sexAtBirth,
+        'primary_diagnosis_id': s.primaryConditionId,
+        'diagnosis_date': dxStr,
+        'cancer_stage': s.cancerStage.isEmpty ? null : s.cancerStage,
+        'treatment_status': treatmentStatusToString(s.treatmentStatus),
+        'consent_version': _disclaimerVersion,
       });
 
-      // 2. patient_profile row (primary_diagnosis_id, diagnosis_date, stage, status).
-      final dob = state.diagnosisDate;
-      await supabase.from('patient_profile').upsert({
-        'user_id': user.id,
-        'primary_diagnosis_id': state.primaryConditionId,
-        'diagnosis_date': dob?.toIso8601String().split('T').first,
-        'cancer_stage': state.cancerStage,
-        'treatment_status': treatmentStatusToString(state.treatmentStatus),
-      });
+      final res = await http.post(
+        Uri.parse('$apiBase/api/onboarding/submit'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${session.accessToken}',
+        },
+        body: body,
+      );
+
+      if (res.statusCode != 200) {
+        throw StateError('Onboarding failed: ${res.statusCode} ${res.body}');
+      }
 
       if (!mounted) return;
-      // Persist the consent version the user just accepted.
       await ref
           .read(settingsControllerProvider.notifier)
           .setConsentVersion(_disclaimerVersion);
+
+      if (s.connectHealthEnabled) {
+        try {
+          final health = ref.read(healthRepositoryProvider);
+          await health.requestPermission();
+        } catch (_) {}
+      }
+
       if (!mounted) return;
-      // Reset controller for a clean re-entry, then go home.
       ref.read(onboardingControllerProvider.notifier).setStep(0);
       context.go('/home');
     } catch (e) {
