@@ -58,6 +58,9 @@ Thumbs.db
 coverage/
 .nyc_output/
 
+# ── Handoff / local-only docs (NEVER commit) ──────────────────
+HANDOFF.md
+
 # ── Local SQLite (offline queue, dev DBs) ─────────────────────
 *.sqlite
 *.sqlite-journal
