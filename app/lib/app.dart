@@ -34,6 +34,7 @@ import 'features/medications/add_medication_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/profile/settings_storage.dart';
+import 'features/report/one_pager_screen.dart';
 import 'features/report/recent_reports_screen.dart';
 import 'features/report/report_detail_screen.dart';
 import 'features/symptoms/symptom_history_screen.dart';
@@ -97,11 +98,7 @@ class _ConcordAppState extends ConsumerState<ConcordApp> {
   }
 }
 
-const _publicRoutes = <String>{
-  '/sign-in',
-  '/sign-up',
-  '/forgot-password',
-};
+const _publicRoutes = <String>{'/sign-in', '/sign-up', '/forgot-password'};
 
 GoRouter _buildRouter(WidgetRef ref) {
   return GoRouter(
@@ -133,15 +130,23 @@ GoRouter _buildRouter(WidgetRef ref) {
     routes: [
       GoRoute(path: '/sign-in', builder: (_, _) => const SignInScreen()),
       GoRoute(path: '/sign-up', builder: (_, _) => const SignUpScreen()),
-      GoRoute(path: '/forgot-password', builder: (_, _) => const ForgotPasswordScreen()),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (_, _) => const ForgotPasswordScreen(),
+      ),
       GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
 
       // Report detail (full-screen push from the tab).
       GoRoute(
         path: '/report/:id',
-        builder: (_, state) => ReportDetailScreen(
-          reportId: state.pathParameters['id']!,
-        ),
+        builder: (_, state) =>
+            ReportDetailScreen(reportId: state.pathParameters['id']!),
+      ),
+
+      // One-pager visual summary (RPT-03). Full-screen push.
+      GoRoute(
+        path: '/report/generate',
+        builder: (_, _) => const OnePagerScreen(),
       ),
 
       // Medications (MED-01..06). Full-screen push from Profile.
@@ -199,10 +204,7 @@ GoRouter _buildRouter(WidgetRef ref) {
           // Atlas
           StatefulShellBranch(
             routes: [
-              GoRoute(
-                path: '/atlas',
-                builder: (_, _) => const ChatScreen(),
-              ),
+              GoRoute(path: '/atlas', builder: (_, _) => const ChatScreen()),
             ],
           ),
           // Profile

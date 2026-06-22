@@ -17,7 +17,16 @@ class RecentReportsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final repo = ref.watch(reportRepositoryProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Reports')),
+      appBar: AppBar(
+        title: const Text('Reports'),
+        actions: [
+          TextButton.icon(
+            onPressed: () => context.push('/report/generate'),
+            icon: const Icon(Icons.summarize_outlined, size: 18),
+            label: const Text('Summary'),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: FutureBuilder<List<ReportSummary>>(
           future: repo.listRecent(),
@@ -26,7 +35,9 @@ class RecentReportsScreen extends ConsumerWidget {
               return const Center(child: CircularProgressIndicator());
             }
             if (snap.hasError) {
-              return Center(child: Text('Couldn\'t load reports: ${snap.error}'));
+              return Center(
+                child: Text('Couldn\'t load reports: ${snap.error}'),
+              );
             }
             final reports = snap.data ?? const [];
             if (reports.isEmpty) {
@@ -35,7 +46,10 @@ class RecentReportsScreen extends ConsumerWidget {
             final grouped = groupByWeek(reports);
             return ListView.builder(
               padding: const EdgeInsets.fromLTRB(
-                Space.s5, Space.s3, Space.s5, Space.s6,
+                Space.s5,
+                Space.s3,
+                Space.s5,
+                Space.s6,
               ),
               itemCount: grouped.length,
               itemBuilder: (context, i) {
@@ -113,11 +127,16 @@ class _ReportTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(timeFmt.format(report.reportedAt), style: t.textTheme.bodyLarge),
+                    Text(
+                      timeFmt.format(report.reportedAt),
+                      style: t.textTheme.bodyLarge,
+                    ),
                     const SizedBox(height: Space.s1),
                     Text(
                       _subtitle(report),
-                      style: t.textTheme.bodySmall?.copyWith(color: Neutrals.slate),
+                      style: t.textTheme.bodySmall?.copyWith(
+                        color: Neutrals.slate,
+                      ),
                     ),
                   ],
                 ),

@@ -26,10 +26,9 @@ class HomeScreen extends ConsumerWidget {
     if (email == null || email.isEmpty) return 'there';
     final local = email.split('@').first;
     // strip digits and dot-separators, then take the first chunk
-    final first = local.split(RegExp(r'[._\d]')).firstWhere(
-          (s) => s.isNotEmpty,
-          orElse: () => local,
-        );
+    final first = local
+        .split(RegExp(r'[._\d]'))
+        .firstWhere((s) => s.isNotEmpty, orElse: () => local);
     return first[0].toUpperCase() + first.substring(1);
   }
 
@@ -53,7 +52,9 @@ class HomeScreen extends ConsumerWidget {
               // signOut() is wired in auth_controller; for Step 6 we leave the
               // icon visible but the action is owned by Profile/Settings.
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Use Profile → Sign out to leave.')),
+                const SnackBar(
+                  content: Text('Use Profile → Sign out to leave.'),
+                ),
               );
             },
           ),
@@ -62,22 +63,20 @@ class HomeScreen extends ConsumerWidget {
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(
-            Space.s5, Space.s2, Space.s5, Space.s6,
+            Space.s5,
+            Space.s2,
+            Space.s5,
+            Space.s6,
           ),
           children: [
-            Text(
-              '$greeting, $firstName',
-              style: t.textTheme.headlineMedium,
-            ),
+            Text('$greeting, $firstName', style: t.textTheme.headlineMedium),
             const SizedBox(height: Space.s2),
             Text(
               'How are you feeling today?',
               style: t.textTheme.bodyLarge?.copyWith(color: Neutrals.slate),
             ),
             const SizedBox(height: Space.s5),
-            _LogSymptomCta(
-              onTap: () => QuickLogScreen.show(context),
-            ),
+            _LogSymptomCta(onTap: () => QuickLogScreen.show(context)),
             const SizedBox(height: Space.s2),
             TextButton.icon(
               onPressed: () => context.push('/symptom-history'),
@@ -87,15 +86,9 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: Space.s5),
             const _TodayActivityCard(),
             const SizedBox(height: Space.s6),
-            _Section(
-              title: 'Recent reports',
-              child: _RecentReportsCard(),
-            ),
+            _Section(title: 'Recent reports', child: _RecentReportsCard()),
             const SizedBox(height: Space.s5),
-            _Section(
-              title: 'Atlas says',
-              child: _AtlasNudgeCard(),
-            ),
+            _Section(title: 'Atlas says', child: _AtlasNudgeCard()),
           ],
         ),
       ),
@@ -192,7 +185,10 @@ class _TodayActivityCardState extends ConsumerState<_TodayActivityCard> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
-          Space.s4, Space.s3, Space.s4, Space.s3,
+          Space.s4,
+          Space.s3,
+          Space.s4,
+          Space.s3,
         ),
         child: Row(
           children: [
@@ -204,8 +200,7 @@ class _TodayActivityCardState extends ConsumerState<_TodayActivityCard> {
             _Stat(
               icon: Icons.favorite_outline,
               label: 'Avg HR',
-              value: s.avgHeartRateBpm == null ||
-                      s.avgHeartRateBpm!.isNaN
+              value: s.avgHeartRateBpm == null || s.avgHeartRateBpm!.isNaN
                   ? '–'
                   : '${s.avgHeartRateBpm!.round()}',
               suffix: 'bpm',
@@ -262,9 +257,10 @@ class _Stat extends StatelessWidget {
             ),
           ),
           const SizedBox(height: Space.s1),
-          Text(label, style: t.textTheme.bodySmall?.copyWith(
-            color: Neutrals.slate,
-          )),
+          Text(
+            label,
+            style: t.textTheme.bodySmall?.copyWith(color: Neutrals.slate),
+          ),
         ],
       ),
     );
@@ -289,8 +285,11 @@ class _LogSymptomCta extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.add_circle_outline,
-                size: 32, color: t.colorScheme.onPrimaryContainer),
+            Icon(
+              Icons.add_circle_outline,
+              size: 32,
+              color: t.colorScheme.onPrimaryContainer,
+            ),
             const SizedBox(width: Space.s3),
             Expanded(
               child: Column(
@@ -298,20 +297,21 @@ class _LogSymptomCta extends StatelessWidget {
                 children: [
                   Text(
                     'Log a symptom',
-                    style: t.textTheme.titleMedium
-                        ?.copyWith(color: t.colorScheme.onPrimaryContainer),
+                    style: t.textTheme.titleMedium?.copyWith(
+                      color: t.colorScheme.onPrimaryContainer,
+                    ),
                   ),
                   const SizedBox(height: Space.s1),
                   Text(
                     'Takes about 30 seconds',
-                    style: t.textTheme.bodySmall
-                        ?.copyWith(color: t.colorScheme.onPrimaryContainer),
+                    style: t.textTheme.bodySmall?.copyWith(
+                      color: t.colorScheme.onPrimaryContainer,
+                    ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right,
-                color: t.colorScheme.onPrimaryContainer),
+            Icon(Icons.chevron_right, color: t.colorScheme.onPrimaryContainer),
           ],
         ),
       ),
@@ -338,21 +338,36 @@ class _Section extends StatelessWidget {
   }
 }
 
-class _RecentReportsCard extends StatelessWidget {
+class _RecentReportsCard extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = Theme.of(context);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(Space.s4),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.assignment_outlined, color: t.colorScheme.primary),
-            const SizedBox(width: Space.s3),
-            Expanded(
-              child: Text(
-                'No reports yet — your first symptom log will create one.',
-                style: t.textTheme.bodyMedium,
+            Row(
+              children: [
+                Icon(Icons.summarize_outlined, color: t.colorScheme.primary),
+                const SizedBox(width: Space.s3),
+                Expanded(
+                  child: Text(
+                    'View your symptom summary — a doctor-ready one-pager '
+                    'with heatmap, trends, and medication adherence.',
+                    style: t.textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: Space.s3),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => context.push('/report/generate'),
+                icon: const Icon(Icons.summarize_outlined, size: 18),
+                label: const Text('Generate Summary'),
               ),
             ),
           ],
@@ -382,9 +397,7 @@ class _AtlasNudgeCard extends ConsumerWidget {
             children: [
               const Text('✨', style: TextStyle(fontSize: 24)),
               const SizedBox(width: Space.s3),
-              Expanded(
-                child: Text(message, style: t.textTheme.bodyMedium),
-              ),
+              Expanded(child: Text(message, style: t.textTheme.bodyMedium)),
               Icon(Icons.chevron_right, color: Neutrals.slate),
             ],
           ),
