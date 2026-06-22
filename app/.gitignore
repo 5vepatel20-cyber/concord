@@ -49,6 +49,7 @@ app.*.map.json
 .env
 .env.local
 .env.*.local
+.env.test
 **/google-services.json
 **/GoogleService-Info.plist
 

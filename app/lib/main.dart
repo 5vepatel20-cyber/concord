@@ -7,6 +7,7 @@
 // 5. Initialize PostHog if the user has opted in (gated on settings).
 // 6. Run the app inside ProviderScope so Riverpod is available everywhere.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,7 +32,12 @@ Future<void> main() async {
   await initSentry(() async {
     WidgetsFlutterBinding.ensureInitialized();
 
-    await dotenv.load(fileName: '.env');
+    // dotenv reads `.env` from the asset bundle, which only exists on
+    // native targets. On web, the env vars are provided via --dart-define
+    // at build time (see tool/run_web.ps1) and AppEnv prefers those.
+    if (!kIsWeb) {
+      await dotenv.load(fileName: '.env');
+    }
     AppEnv.assertSafe();
 
     await Supabase.initialize(

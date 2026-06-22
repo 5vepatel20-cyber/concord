@@ -81,15 +81,22 @@ class HealthRepository {
   final Health _health = Health();
   bool _configured = false;
 
+  /// The `health` plugin only targets iOS (HealthKit) and Android
+  /// (Health Connect). On web the calls below would throw, so we surface
+  /// a clear UnsupportedError from each entry point instead.
+  static bool get _isUnsupportedPlatform => kIsWeb;
+
   /// Lazy configure. The plugin needs configure() before any other call.
   Future<void> _ensureConfigured() async {
     if (_configured) return;
+    if (_isUnsupportedPlatform) return;
     await _health.configure();
     _configured = true;
   }
 
   /// Returns true if any of the read types are already authorized.
   Future<bool> hasPermission() async {
+    if (_isUnsupportedPlatform) return false;
     await _ensureConfigured();
     final granted = await _health.hasPermissions(_kReadTypes) ?? false;
     return granted;
@@ -98,6 +105,7 @@ class HealthRepository {
   /// Request read permission for the read-types set. On iOS this surfaces
   /// the system Health sheet; on Android it routes through Health Connect.
   Future<bool> requestPermission() async {
+    if (_isUnsupportedPlatform) return false;
     await _ensureConfigured();
     try {
       final granted = await _health.requestAuthorization(_kReadTypes);
@@ -112,6 +120,9 @@ class HealthRepository {
   /// now; sleep is read from last night (yesterday 6pm → today noon) to
   /// span the overnight gap.
   Future<HealthSnapshot> fetchTodaySnapshot({DateTime? now}) async {
+    if (_isUnsupportedPlatform) {
+      return HealthSnapshot(fetchedAt: now ?? DateTime.now());
+    }
     await _ensureConfigured();
     final n = now ?? DateTime.now();
 

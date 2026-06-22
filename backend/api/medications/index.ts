@@ -12,10 +12,13 @@ import { z } from "zod";
 import { requireUser, jsonError } from "../../_lib/auth.js";
 import { serviceClient } from "../../_lib/supabase.js";
 import { initSentry, Sentry } from "../../_lib/sentry.js";
+import { corsed, preflight, corsedJsonError } from "../../_lib/cors.js";
 
 export const config = {
   runtime: "nodejs",
 };
+
+export const OPTIONS = (req: Request): Response => preflight(req);
 
 const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9_\-:.]{8,128}$/;
 
@@ -52,7 +55,7 @@ const CreateBody = z.object({
 export const GET = async (req: Request): Promise<Response> => {
   initSentry();
   const userOrError = await requireUser(req);
-  if (userOrError instanceof Response) return userOrError;
+  if (userOrError instanceof Response) return corsed(req, userOrError);
   const user = userOrError;
   const supabase = serviceClient();
 
@@ -72,18 +75,21 @@ export const GET = async (req: Request): Promise<Response> => {
   const { data, error } = await query;
   if (error) {
     Sentry.captureException(error);
-    return jsonError(500, "list_failed", error.message);
+    return corsedJsonError(req, 500, "list_failed", error.message);
   }
-  return new Response(JSON.stringify({ ok: true, medications: data ?? [] }), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
+  return corsed(
+    req,
+    new Response(JSON.stringify({ ok: true, medications: data ?? [] }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }),
+  );
 };
 
 export const POST = async (req: Request): Promise<Response> => {
   initSentry();
   const userOrError = await requireUser(req);
-  if (userOrError instanceof Response) return userOrError;
+  if (userOrError instanceof Response) return corsed(req, userOrError);
   const user = userOrError;
   const supabase = serviceClient();
 
@@ -98,7 +104,8 @@ export const POST = async (req: Request): Promise<Response> => {
   try {
     body = CreateBody.parse(await req.json());
   } catch (e) {
-    return jsonError(
+    return corsedJsonError(
+      req,
       400,
       "bad_request",
       e instanceof Error ? e.message : "Invalid JSON body",
@@ -115,13 +122,16 @@ export const POST = async (req: Request): Promise<Response> => {
     if (cacheErr) {
       Sentry.captureException(cacheErr);
     } else if (cached) {
-      return new Response(JSON.stringify(cached.response_body), {
-        status: cached.status_code,
-        headers: {
-          "content-type": "application/json",
-          "idempotent-replay": "true",
-        },
-      });
+      return corsed(
+        req,
+        new Response(JSON.stringify(cached.response_body), {
+          status: cached.status_code,
+          headers: {
+            "content-type": "application/json",
+            "idempotent-replay": "true",
+          },
+        }),
+      );
     }
   }
 
@@ -145,7 +155,7 @@ export const POST = async (req: Request): Promise<Response> => {
     .single();
   if (error || !data) {
     Sentry.captureException(error);
-    return jsonError(500, "insert_failed", error?.message ?? "insert failed");
+    return corsedJsonError(req, 500, "insert_failed", error?.message ?? "insert failed");
   }
 
   const responseBody = { ok: true, medication: data };
@@ -163,8 +173,11 @@ export const POST = async (req: Request): Promise<Response> => {
     }
   }
 
-  return new Response(JSON.stringify(responseBody, null, 2), {
-    status: 201,
-    headers: { "content-type": "application/json" },
-  });
+  return corsed(
+    req,
+    new Response(JSON.stringify(responseBody, null, 2), {
+      status: 201,
+      headers: { "content-type": "application/json" },
+    }),
+  );
 };

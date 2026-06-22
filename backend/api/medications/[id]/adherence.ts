@@ -11,10 +11,13 @@ import { z } from "zod";
 import { requireUser, jsonError } from "../../../_lib/auth.js";
 import { serviceClient } from "../../../_lib/supabase.js";
 import { initSentry, Sentry } from "../../../_lib/sentry.js";
+import { corsed, preflight, corsedJsonError } from "../../../_lib/cors.js";
 
 export const config = {
   runtime: "nodejs",
 };
+
+export const OPTIONS = (req: Request): Response => preflight(req);
 
 const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9_\-:.]{8,128}$/;
 
@@ -30,7 +33,7 @@ export const POST = async (
 ): Promise<Response> => {
   initSentry();
   const userOrError = await requireUser(req);
-  if (userOrError instanceof Response) return userOrError;
+  if (userOrError instanceof Response) return corsed(req, userOrError);
   const user = userOrError;
   const medicationId = ctx.params.id;
 
@@ -53,13 +56,16 @@ export const POST = async (
     if (cacheErr) {
       Sentry.captureException(cacheErr);
     } else if (cached) {
-      return new Response(JSON.stringify(cached.response_body), {
-        status: cached.status_code,
-        headers: {
-          "content-type": "application/json",
-          "idempotent-replay": "true",
-        },
-      });
+      return corsed(
+        req,
+        new Response(JSON.stringify(cached.response_body), {
+          status: cached.status_code,
+          headers: {
+            "content-type": "application/json",
+            "idempotent-replay": "true",
+          },
+        }),
+      );
     }
   }
 
@@ -67,7 +73,8 @@ export const POST = async (
   try {
     body = Body.parse(await req.json());
   } catch (e) {
-    return jsonError(
+    return corsedJsonError(
+      req,
       400,
       "bad_request",
       e instanceof Error ? e.message : "Invalid JSON body",
@@ -85,13 +92,13 @@ export const POST = async (
     .maybeSingle();
   if (medErr) {
     Sentry.captureException(medErr);
-    return jsonError(500, "lookup_failed", medErr.message);
+    return corsedJsonError(req, 500, "lookup_failed", medErr.message);
   }
   if (!med) {
-    return jsonError(404, "not_found", "Medication not found");
+    return corsedJsonError(req, 404, "not_found", "Medication not found");
   }
   if (med.patient_id !== user.id) {
-    return jsonError(403, "forbidden", "Medication belongs to another user");
+    return corsedJsonError(req, 403, "forbidden", "Medication belongs to another user");
   }
 
   const row = {
@@ -107,7 +114,7 @@ export const POST = async (
     .single();
   if (error || !data) {
     Sentry.captureException(error);
-    return jsonError(500, "insert_failed", error?.message ?? "insert failed");
+    return corsedJsonError(req, 500, "insert_failed", error?.message ?? "insert failed");
   }
 
   const responseBody = { ok: true, event: data };
@@ -125,8 +132,11 @@ export const POST = async (
     }
   }
 
-  return new Response(JSON.stringify(responseBody, null, 2), {
-    status: 201,
-    headers: { "content-type": "application/json" },
-  });
+  return corsed(
+    req,
+    new Response(JSON.stringify(responseBody, null, 2), {
+      status: 201,
+      headers: { "content-type": "application/json" },
+    }),
+  );
 };

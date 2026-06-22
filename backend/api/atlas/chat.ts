@@ -8,14 +8,17 @@
 
 import type { ChatMessage } from "../../_lib/ai/types.js";
 import { getAIProvider } from "../../_lib/ai/provider.js";
-import { requireUser, jsonError } from "../../_lib/auth.js";
+import { requireUser } from "../../_lib/auth.js";
 import { serviceClient } from "../../_lib/supabase.js";
 import { initSentry, Sentry } from "../../_lib/sentry.js";
+import { corsed, preflight, corsedJsonError } from "../../_lib/cors.js";
 import { z } from "zod";
 
 export const config = {
   runtime: "nodejs",
 };
+
+export const OPTIONS = (req: Request): Response => preflight(req);
 
 const BodySchema = z.object({
   messages: z
@@ -43,14 +46,14 @@ export const POST = async (req: Request): Promise<Response> => {
   initSentry();
 
   const userOrError = await requireUser(req);
-  if (userOrError instanceof Response) return userOrError;
+  if (userOrError instanceof Response) return corsed(req, userOrError);
   const user = userOrError;
 
   let body: z.infer<typeof BodySchema>;
   try {
     body = BodySchema.parse(await req.json());
   } catch (e) {
-    return jsonError(400, "bad_request", e instanceof Error ? e.message : "Invalid JSON body");
+    return corsedJsonError(req, 400, "bad_request", e instanceof Error ? e.message : "Invalid JSON body");
   }
 
   // ATLAS-02: pull the patient's last 7 days of graded symptom responses
@@ -94,14 +97,17 @@ export const POST = async (req: Request): Promise<Response> => {
     },
   });
 
-  return new Response(stream, {
-    status: 200,
-    headers: {
-      "content-type": "text/event-stream",
-      "cache-control": "no-store",
-      "x-accel-buffering": "no", // disable Vercel buffering for true streaming
-    },
-  });
+  return corsed(
+    req,
+    new Response(stream, {
+      status: 200,
+      headers: {
+        "content-type": "text/event-stream",
+        "cache-control": "no-store",
+        "x-accel-buffering": "no", // disable Vercel buffering for true streaming
+      },
+    }),
+  );
 };
 
 /**

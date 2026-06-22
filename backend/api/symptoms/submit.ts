@@ -10,14 +10,17 @@
 //   server writes but before the client receives 201 will not double-log.
 
 import { z } from "zod";
-import { requireUser, jsonError } from "../../_lib/auth.js";
+import { requireUser } from "../../_lib/auth.js";
 import { serviceClient } from "../../_lib/supabase.js";
 import { compositeGrade, type Grade } from "../../_lib/pro-ctcae/scorer.js";
 import { initSentry, Sentry } from "../../_lib/sentry.js";
+import { corsed, preflight, corsedJsonError } from "../../_lib/cors.js";
 
 export const config = {
   runtime: "nodejs",
 };
+
+export const OPTIONS = (req: Request): Response => preflight(req);
 
 // 0-4 integer attributes; 0/1 for presence; null = "not asked".
 const Attr = z.number().int().min(0).max(4).nullable();
@@ -47,7 +50,7 @@ export const POST = async (req: Request): Promise<Response> => {
   initSentry();
 
   const userOrError = await requireUser(req);
-  if (userOrError instanceof Response) return userOrError;
+  if (userOrError instanceof Response) return corsed(req, userOrError);
   const user = userOrError;
 
   // Idempotency-Key: optional but recommended. Format is permissive enough
@@ -63,7 +66,7 @@ export const POST = async (req: Request): Promise<Response> => {
   try {
     body = Body.parse(await req.json());
   } catch (e) {
-    return jsonError(400, "bad_request", e instanceof Error ? e.message : "Invalid JSON body");
+    return corsedJsonError(req, 400, "bad_request", e instanceof Error ? e.message : "Invalid JSON body");
   }
 
   const supabase = serviceClient();
@@ -81,13 +84,16 @@ export const POST = async (req: Request): Promise<Response> => {
       // do the write. Worst case we get a duplicate, which is recoverable.
       Sentry.captureException(cacheErr);
     } else if (cached) {
-      return new Response(JSON.stringify(cached.response_body), {
-        status: cached.status_code,
-        headers: {
-          "content-type": "application/json",
-          "idempotent-replay": "true",
-        },
-      });
+      return corsed(
+        req,
+        new Response(JSON.stringify(cached.response_body), {
+          status: cached.status_code,
+          headers: {
+            "content-type": "application/json",
+            "idempotent-replay": "true",
+          },
+        }),
+      );
     }
   }
 
@@ -99,12 +105,12 @@ export const POST = async (req: Request): Promise<Response> => {
     .in("pro_ctcae_code", codes);
   if (termsErr) {
     Sentry.captureException(termsErr);
-    return jsonError(500, "term_lookup_failed", termsErr.message);
+    return corsedJsonError(req, 500, "term_lookup_failed", termsErr.message);
   }
   const codeToId = new Map(terms?.map((t) => [t.pro_ctcae_code, t.id] as const) ?? []);
   for (const code of codes) {
     if (!codeToId.has(code)) {
-      return jsonError(400, "unknown_term", `Unknown PRO-CTCAE code: ${code}`);
+      return corsedJsonError(req, 400, "unknown_term", `Unknown PRO-CTCAE code: ${code}`);
     }
   }
 
@@ -134,7 +140,7 @@ export const POST = async (req: Request): Promise<Response> => {
     .single();
   if (reportErr || !report) {
     Sentry.captureException(reportErr);
-    return jsonError(500, "report_insert_failed", reportErr?.message ?? "insert failed");
+    return corsedJsonError(req, 500, "report_insert_failed", reportErr?.message ?? "insert failed");
   }
 
   const responseRows = graded.map((g) => ({
@@ -152,7 +158,7 @@ export const POST = async (req: Request): Promise<Response> => {
   const { error: respErr } = await supabase.from("symptom_response").insert(responseRows);
   if (respErr) {
     Sentry.captureException(respErr);
-    return jsonError(500, "response_insert_failed", respErr.message);
+    return corsedJsonError(req, 500, "response_insert_failed", respErr.message);
   }
 
   // ALRT-03 (patient-side safety guidance): if any response graded Severe (3),
@@ -187,10 +193,13 @@ export const POST = async (req: Request): Promise<Response> => {
     }
   }
 
-  return new Response(JSON.stringify(responseBody, null, 2), {
-    status: 201,
-    headers: { "content-type": "application/json" },
-  });
+  return corsed(
+    req,
+    new Response(JSON.stringify(responseBody, null, 2), {
+      status: 201,
+      headers: { "content-type": "application/json" },
+    }),
+  );
 };
 
 const EMERGENCY_GUIDANCE = {

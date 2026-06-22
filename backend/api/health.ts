@@ -4,6 +4,7 @@
 import { initSentry } from "../_lib/sentry.js";
 import { getEnv, mask } from "../_lib/env.js";
 import { serviceClient } from "../_lib/supabase.js";
+import { corsed, preflight } from "../_lib/cors.js";
 
 export const config = {
   // Vercel Node runtime. No version suffix — Vercel uses the
@@ -11,7 +12,9 @@ export const config = {
   runtime: "nodejs",
 };
 
-export const GET = async (_req: Request): Promise<Response> => {
+export const OPTIONS = (req: Request): Response => preflight(req);
+
+export const GET = async (req: Request): Promise<Response> => {
   initSentry();
   const env = getEnv();
 
@@ -44,11 +47,14 @@ export const GET = async (_req: Request): Promise<Response> => {
     timestamp: new Date().toISOString(),
   };
 
-  return new Response(JSON.stringify(body, null, 2), {
-    status: 200,
-    headers: {
-      "content-type": "application/json",
-      "cache-control": "no-store",
-    },
-  });
+  return corsed(
+    req,
+    new Response(JSON.stringify(body, null, 2), {
+      status: 200,
+      headers: {
+        "content-type": "application/json",
+        "cache-control": "no-store",
+      },
+    }),
+  );
 };
