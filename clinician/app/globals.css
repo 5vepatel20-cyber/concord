@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --concord-blue: #1668E0;
+  --concord-blue-pressed: #0F4FB0;
+  --concord-blue-tint: #EAF1FD;
+  --ink: #0F1B2D;
+  --body: #2B3A4F;
+  --slate: #5E6B7E;
+  --hint: #9AA6B6;
+  --mist: #F4F7FA;
+  --surface: #FFFFFF;
+  --hairline: #E2E8F0;
+  --stable: #16A974;
+  --caution: #E8A33D;
+  --warn: #F2683C;
+  --severe: #E5484D;
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background: var(--mist);
+  color: var(--ink);
+}
