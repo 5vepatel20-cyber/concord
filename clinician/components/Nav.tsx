@@ -42,6 +42,9 @@ export function Nav() {
       <a href="/alerts" style={linkStyle}>
         Alert Inbox
       </a>
+      <a href="/billing" style={linkStyle}>
+        RTM Billing
+      </a>
 
       <div style={{ flex: 1 }} />
 

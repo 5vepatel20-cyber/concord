@@ -38,3 +38,24 @@ export interface PatientDetail extends PatientSummary {
     adherence_pct: number;
   }[];
 }
+
+export interface RtmPatientSummary {
+  id: string;
+  full_name: string;
+  primary_diagnosis: string;
+  status: string;
+  consent_on_file: boolean;
+  cpt_98975_billed: boolean;
+}
+
+export interface RtmBillingPeriod {
+  id: string;
+  patient_id: string;
+  year: number;
+  month: number;
+  total_minutes: number;
+  cpt_98980_units: number;
+  cpt_98981_units: number;
+  billed: boolean;
+  billed_at: string | null;
+}
