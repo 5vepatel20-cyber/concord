@@ -14,6 +14,7 @@ import { requireUser } from "../../_lib/auth.js";
 import { serviceClient } from "../../_lib/supabase.js";
 import { compositeGrade, type Grade } from "../../_lib/pro-ctcae/scorer.js";
 import { evaluateRules } from "../../_lib/alerts/rules.js";
+import { detectWorsening } from "../../_lib/pro-ctcae/worsening.js";
 import { initSentry, Sentry } from "../../_lib/sentry.js";
 import { corsed, preflight, corsedJsonError } from "../../_lib/cors.js";
 
@@ -192,6 +193,15 @@ export const POST = async (req: Request): Promise<Response> => {
     }
   }
 
+  // SYM-06: Detect worsening vs 7-day rolling baseline. Best-effort;
+  // failure here doesn't block the symptom log.
+  let worsening: Awaited<ReturnType<typeof detectWorsening>> = [];
+  try {
+    worsening = await detectWorsening(user.id);
+  } catch (e) {
+    Sentry.captureException(e);
+  }
+
   // ALRT-03 (patient-side safety guidance): if any response graded Severe (3),
   // surface a guidance block. The patient sees this in the app; clinicians see
   // it in the alert inbox (Phase 2).
@@ -204,6 +214,7 @@ export const POST = async (req: Request): Promise<Response> => {
     responses_written: responseRows.length,
     severe_responses: severe,
     alerts_created: alertsCreated,
+    worsening: worsening.filter((w) => w.direction === "worsened" || w.direction === "new"),
     emergency_guidance: null,
   };
 
