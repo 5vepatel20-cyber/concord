@@ -13,6 +13,7 @@ import { z } from "zod";
 import { requireUser } from "../../_lib/auth.js";
 import { serviceClient } from "../../_lib/supabase.js";
 import { compositeGrade, type Grade } from "../../_lib/pro-ctcae/scorer.js";
+import { evaluateRules } from "../../_lib/alerts/rules.js";
 import { initSentry, Sentry } from "../../_lib/sentry.js";
 import { corsed, preflight, corsedJsonError } from "../../_lib/cors.js";
 
@@ -161,6 +162,36 @@ export const POST = async (req: Request): Promise<Response> => {
     return corsedJsonError(req, 500, "response_insert_failed", respErr.message);
   }
 
+  // ALRT-01: Evaluate graded responses against the alert rule engine.
+  // Creates symptom_alert rows for any rule matches.
+  const generatedAlerts = await evaluateRules(
+    user.id,
+    report.id,
+    graded.map((g) => ({
+      term_id: g.term_id,
+      pro_ctcae_code: g.pro_ctcae_code,
+      composite_grade: g.composite_grade,
+      body_location: g.body_location,
+    })),
+  );
+
+  let alertsCreated = 0;
+  if (generatedAlerts.length > 0) {
+    const alertRows = generatedAlerts.map((a) => ({
+      patient_id: a.patient_id,
+      report_id: report.id,
+      rule_id: a.rule_id,
+      severity_level: a.severity_level,
+    }));
+
+    const { error: alertErr } = await supabase.from("symptom_alert").insert(alertRows);
+    if (alertErr) {
+      Sentry.captureException(alertErr);
+    } else {
+      alertsCreated = alertRows.length;
+    }
+  }
+
   // ALRT-03 (patient-side safety guidance): if any response graded Severe (3),
   // surface a guidance block. The patient sees this in the app; clinicians see
   // it in the alert inbox (Phase 2).
@@ -172,6 +203,7 @@ export const POST = async (req: Request): Promise<Response> => {
     report_id: report.id,
     responses_written: responseRows.length,
     severe_responses: severe,
+    alerts_created: alertsCreated,
     emergency_guidance: null,
   };
 
