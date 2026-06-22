@@ -17,6 +17,7 @@ import '../../data/supabase/supabase_provider.dart';
 import '../../theme/tokens.dart';
 import '../../theme/typography.dart';
 import '../symptoms/quick_log_screen.dart';
+import '../symptoms/symptom_history_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -76,6 +77,12 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: Space.s5),
             _LogSymptomCta(
               onTap: () => QuickLogScreen.show(context),
+            ),
+            const SizedBox(height: Space.s2),
+            TextButton.icon(
+              onPressed: () => context.push('/symptom-history'),
+              icon: const Icon(Icons.history, size: 18),
+              label: const Text('View symptom history'),
             ),
             const SizedBox(height: Space.s5),
             const _TodayActivityCard(),

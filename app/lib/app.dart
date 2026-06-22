@@ -36,6 +36,7 @@ import 'features/profile/profile_screen.dart';
 import 'features/profile/settings_storage.dart';
 import 'features/report/recent_reports_screen.dart';
 import 'features/report/report_detail_screen.dart';
+import 'features/symptoms/symptom_history_screen.dart';
 import 'features/tab_shell.dart';
 import 'theme/theme_data.dart';
 
@@ -151,6 +152,12 @@ GoRouter _buildRouter(WidgetRef ref) {
       GoRoute(
         path: '/medications/add',
         builder: (_, _) => const AddMedicationScreen(),
+      ),
+
+      // Symptom history (SYM-07). Full-screen push from Home.
+      GoRoute(
+        path: '/symptom-history',
+        builder: (_, _) => const SymptomHistoryScreen(),
       ),
 
       // Documents (DOC-01..05). Full-screen push from Profile.
