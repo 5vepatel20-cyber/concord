@@ -82,6 +82,9 @@ dependencies:
   # recognizer: SFSpeechRecognizer on iOS, RecognitionService on Android.
   speech_to_text: ^7.4.0
 
+  # Document capture: camera / photo picker (DOC-01).
+  image_picker: ^1.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

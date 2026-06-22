@@ -26,6 +26,7 @@ import 'features/auth/auth_controller.dart';
 import 'features/auth/forgot_password_screen.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/auth/sign_up_screen.dart';
+import 'features/documents/document_decode_screen.dart';
 import 'features/home/home_screen.dart';
 import 'features/log/log_landing_screen.dart';
 import 'features/medications/medications_screen.dart';
@@ -150,6 +151,12 @@ GoRouter _buildRouter(WidgetRef ref) {
       GoRoute(
         path: '/medications/add',
         builder: (_, _) => const AddMedicationScreen(),
+      ),
+
+      // Documents (DOC-01..05). Full-screen push from Profile.
+      GoRoute(
+        path: '/documents/decode',
+        builder: (_, _) => const DocumentDecodeScreen(),
       ),
 
       // Authenticated shell — 5 branches.

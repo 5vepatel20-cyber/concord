@@ -69,6 +69,21 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ]),
 
+            // Document decode (DOC-01..05).
+            const SizedBox(height: Space.s5),
+            _SectionHeader('Documents'),
+            _SettingsCard(children: [
+              ListTile(
+                leading: const Icon(Icons.description_outlined),
+                title: const Text('Decode a document'),
+                subtitle: const Text(
+                  'Upload or paste medical documents for AI-powered plain-language summary and lab flagging.',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/documents/decode'),
+              ),
+            ]),
+
             // Reminders (SYM-03).
             const SizedBox(height: Space.s5),
             _SectionHeader('Reminders'),
