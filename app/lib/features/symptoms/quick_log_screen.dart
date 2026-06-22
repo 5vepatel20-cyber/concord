@@ -15,6 +15,7 @@ import '../../data/repositories/symptom_repository.dart';
 import '../../data/repositories/vocab_repository.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/severity_chip.dart';
+import '../../widgets/severity_scale.dart';
 
 /// Bottom sheet. Always wraps content in the bottom sheet; close button is the
 /// native drag handle + scrim tap.
@@ -490,43 +491,12 @@ class _SymptomRow extends StatelessWidget {
             ),
           ],
           const SizedBox(height: Space.s2),
-          Wrap(
-            spacing: Space.s2,
-            runSpacing: Space.s2,
-            children: [
-              for (var g = 0; g < 4; g++)
-                _SeverityChoice(
-                  grade: g,
-                  selected: selectedGrade == g,
-                  onTap: () => onChanged(selectedGrade == g ? null : g),
-                ),
-            ],
+          SeverityScale(
+            grades: const [0, 1, 2, 3],
+            selectedGrade: selectedGrade,
+            onChanged: onChanged,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SeverityChoice extends StatelessWidget {
-  const _SeverityChoice({
-    required this.grade,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final int grade;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(Radii.md),
-      child: Padding(
-        padding: const EdgeInsets.all(Space.s1),
-        child: SeverityChip(grade: grade, outlined: !selected),
       ),
     );
   }

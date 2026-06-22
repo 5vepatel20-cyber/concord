@@ -15,6 +15,7 @@ import 'package:intl/intl.dart';
 import '../../core/health/health_repository.dart';
 import '../../data/supabase/supabase_provider.dart';
 import '../../theme/tokens.dart';
+import '../../theme/typography.dart';
 import '../symptoms/quick_log_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -240,7 +241,7 @@ class _Stat extends StatelessWidget {
             text: TextSpan(
               style: t.textTheme.titleMedium,
               children: [
-                TextSpan(text: value),
+                TextSpan(text: value, style: numericTextStyle),
                 if (suffix != null)
                   TextSpan(
                     text: ' $suffix',
