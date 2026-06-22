@@ -96,6 +96,23 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
 
+            // Clinical trials search (TRIAL-01).
+            const SizedBox(height: Space.s5),
+            _SectionHeader('Research'),
+            _SettingsCard(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.biotech_outlined),
+                  title: const Text('Clinical trials'),
+                  subtitle: const Text(
+                    'Search ClinicalTrials.gov for studies relevant to your condition.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/trials/search'),
+                ),
+              ],
+            ),
+
             // Document decode (DOC-01..05).
             const SizedBox(height: Space.s5),
             _SectionHeader('Documents'),

@@ -40,6 +40,7 @@ import 'features/report/recent_reports_screen.dart';
 import 'features/report/report_detail_screen.dart';
 import 'features/symptoms/symptom_history_screen.dart';
 import 'features/tab_shell.dart';
+import 'features/trials/trial_search_screen.dart';
 import 'features/vitals/manual_entry_screen.dart';
 import 'theme/theme_data.dart';
 
@@ -183,6 +184,12 @@ GoRouter _buildRouter(WidgetRef ref) {
       GoRoute(
         path: '/atlas/visit-prep',
         builder: (_, _) => const VisitPrepScreen(),
+      ),
+
+      // Clinical trials search (TRIAL-01). Full-screen push from Profile.
+      GoRoute(
+        path: '/trials/search',
+        builder: (_, _) => const TrialSearchScreen(),
       ),
 
       // Authenticated shell — 5 branches.
