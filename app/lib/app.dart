@@ -39,6 +39,7 @@ import 'features/report/recent_reports_screen.dart';
 import 'features/report/report_detail_screen.dart';
 import 'features/symptoms/symptom_history_screen.dart';
 import 'features/tab_shell.dart';
+import 'features/vitals/manual_entry_screen.dart';
 import 'theme/theme_data.dart';
 
 class ConcordApp extends ConsumerStatefulWidget {
@@ -169,6 +170,12 @@ GoRouter _buildRouter(WidgetRef ref) {
       GoRoute(
         path: '/documents/decode',
         builder: (_, _) => const DocumentDecodeScreen(),
+      ),
+
+      // Manual vitals entry (HK-03). Full-screen push from Profile.
+      GoRoute(
+        path: '/vitals/manual',
+        builder: (_, _) => const ManualEntryScreen(),
       ),
 
       // Authenticated shell — 5 branches.
