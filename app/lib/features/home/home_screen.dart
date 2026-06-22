@@ -16,7 +16,7 @@ import '../../core/health/health_repository.dart';
 import '../../data/supabase/supabase_provider.dart';
 import '../../theme/tokens.dart';
 import '../../theme/typography.dart';
-import '../symptoms/quick_log_screen.dart';
+import '../symptoms/quick_log_widget.dart';
 import '../symptoms/symptom_history_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -76,8 +76,8 @@ class HomeScreen extends ConsumerWidget {
               style: t.textTheme.bodyLarge?.copyWith(color: Neutrals.slate),
             ),
             const SizedBox(height: Space.s5),
-            _LogSymptomCta(onTap: () => QuickLogScreen.show(context)),
-            const SizedBox(height: Space.s2),
+            const QuickLogWidget(),
+            const SizedBox(height: Space.s3),
             TextButton.icon(
               onPressed: () => context.push('/symptom-history'),
               icon: const Icon(Icons.history, size: 18),
@@ -262,58 +262,6 @@ class _Stat extends StatelessWidget {
             style: t.textTheme.bodySmall?.copyWith(color: Neutrals.slate),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _LogSymptomCta extends StatelessWidget {
-  const _LogSymptomCta({required this.onTap});
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(Radii.lg),
-      child: Container(
-        padding: const EdgeInsets.all(Space.s5),
-        decoration: BoxDecoration(
-          color: t.colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(Radii.lg),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.add_circle_outline,
-              size: 32,
-              color: t.colorScheme.onPrimaryContainer,
-            ),
-            const SizedBox(width: Space.s3),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Log a symptom',
-                    style: t.textTheme.titleMedium?.copyWith(
-                      color: t.colorScheme.onPrimaryContainer,
-                    ),
-                  ),
-                  const SizedBox(height: Space.s1),
-                  Text(
-                    'Takes about 30 seconds',
-                    style: t.textTheme.bodySmall?.copyWith(
-                      color: t.colorScheme.onPrimaryContainer,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right, color: t.colorScheme.onPrimaryContainer),
-          ],
-        ),
       ),
     );
   }
