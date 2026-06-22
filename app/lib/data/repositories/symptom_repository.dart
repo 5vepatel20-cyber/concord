@@ -179,15 +179,26 @@ class SymptomRepository {
     }
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
-    // Backend contract: { ok: true, report_id: "...", emergency_guidance: ... }
+    // Backend contract: { ok: true, report_id: "...", emergency_guidance: { title, body, callout } }
     final reportId = body['report_id'] as String?;
     if (reportId == null) {
       throw const FormatException('submitOnline response missing report_id');
     }
-    final guidance = body['emergency_guidance']?.toString();
+
+    String? guidanceText;
+    final guidanceRaw = body['emergency_guidance'];
+    if (guidanceRaw is Map<String, dynamic>) {
+      final g = guidanceRaw;
+      guidanceText = g['body'] as String?;
+      final callout = g['callout'] as String?;
+      if (callout != null && callout.isNotEmpty) {
+        guidanceText = '${guidanceText ?? ''}\n\n$callout';
+      }
+    }
+
     return SubmitOnlineResult(
       serverId: reportId,
-      emergencyGuidance: (guidance == null || guidance.isEmpty) ? null : guidance,
+      emergencyGuidance: (guidanceText == null || guidanceText.isEmpty) ? null : guidanceText,
     );
   }
 }

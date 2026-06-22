@@ -9,6 +9,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/health/health_repository.dart';
@@ -351,24 +352,32 @@ class _RecentReportsCard extends StatelessWidget {
   }
 }
 
-class _AtlasNudgeCard extends StatelessWidget {
+class _AtlasNudgeCard extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = Theme.of(context);
+    final now = DateTime.now();
+    final isEvening = now.hour >= 17;
+    final message = isEvening
+        ? 'Ask Atlas how your symptoms compare to last week.'
+        : 'Check in with Atlas — get a summary of how you\'re doing.';
+
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(Space.s4),
-        child: Row(
-          children: [
-            const Text('✨', style: TextStyle(fontSize: 24)),
-            const SizedBox(width: Space.s3),
-            Expanded(
-              child: Text(
-                'Ask Atlas to summarize how you\'ve been doing this week.',
-                style: t.textTheme.bodyMedium,
+      child: InkWell(
+        onTap: () => context.go('/atlas'),
+        borderRadius: BorderRadius.circular(Radii.md),
+        child: Padding(
+          padding: const EdgeInsets.all(Space.s4),
+          child: Row(
+            children: [
+              const Text('✨', style: TextStyle(fontSize: 24)),
+              const SizedBox(width: Space.s3),
+              Expanded(
+                child: Text(message, style: t.textTheme.bodyMedium),
               ),
-            ),
-          ],
+              Icon(Icons.chevron_right, color: Neutrals.slate),
+            ],
+          ),
         ),
       ),
     );

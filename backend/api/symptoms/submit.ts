@@ -164,17 +164,25 @@ export const POST = async (req: Request): Promise<Response> => {
   // ALRT-03 (patient-side safety guidance): if any response graded Severe (3),
   // surface a guidance block. The patient sees this in the app; clinicians see
   // it in the alert inbox (Phase 2).
-  const severe = graded
-    .filter((g) => g.composite_grade === 3)
-    .map((g) => ({ term_code: g.pro_ctcae_code, body_location: g.body_location }));
+  const severeTerms = graded.filter((g) => g.composite_grade === 3);
+  const severe = severeTerms.map((g) => ({ term_code: g.pro_ctcae_code, body_location: g.body_location }));
 
-  const responseBody = {
+  const responseBody: Record<string, unknown> = {
     ok: true,
     report_id: report.id,
     responses_written: responseRows.length,
     severe_responses: severe,
-    guidance: severe.length > 0 ? EMERGENCY_GUIDANCE : null,
+    emergency_guidance: null,
   };
+
+  if (severeTerms.length > 0) {
+    const symptomNames = severeTerms.map((g) => g.pro_ctcae_code).join(", ");
+    responseBody.emergency_guidance = {
+      title: EMERGENCY_GUIDANCE.title,
+      body: `You reported severe ${symptomNames}. ${EMERGENCY_GUIDANCE.body}`,
+      callout: EMERGENCY_GUIDANCE.callout,
+    };
+  }
 
   // Cache the response so a retry replays it instead of double-writing.
   // We swallow any cache-write error — duplicates are recoverable, but
