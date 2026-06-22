@@ -146,6 +146,8 @@ class _TodayActivityCardState extends ConsumerState<_TodayActivityCard> {
       _checking = false;
       _snapshot = snap;
     });
+    // HK-02: best-effort server sync.
+    repo.syncToServer(snap);
   }
 
   Future<void> _connect() async {

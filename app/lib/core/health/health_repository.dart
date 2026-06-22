@@ -16,10 +16,14 @@
 //   - SPEC.md §"HealthKit reads" (HK-01)
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:health/health.dart';
+import 'package:http/http.dart' as http;
+
+import '../../data/supabase/supabase_provider.dart';
 
 /// Permission scopes — the union of types we ever request. The OS will
 /// show one prompt covering all of these; splitting them later is a
@@ -72,12 +76,13 @@ class HealthSnapshot {
 }
 
 final healthRepositoryProvider = Provider<HealthRepository>((ref) {
-  return HealthRepository();
+  return HealthRepository(ref);
 });
 
 class HealthRepository {
-  HealthRepository();
+  HealthRepository(this._ref);
 
+  final Ref _ref;
   final Health _health = Health();
   bool _configured = false;
 
@@ -208,5 +213,69 @@ class HealthRepository {
       totalMs += p.dateTo.difference(p.dateFrom).inMilliseconds;
     }
     return totalMs / Duration.millisecondsPerHour;
+  }
+
+  /// HK-02: Upload today's snapshot to the server. Returns true on success.
+  /// Best-effort — failure is silently swallowed so it never blocks the UI.
+  Future<bool> syncToServer(HealthSnapshot snapshot) async {
+    try {
+      final apiBase = _ref.read(apiBaseUrlProvider);
+      final session = _ref.read(supabaseClientProvider).auth.currentSession;
+      if (session == null) return false;
+
+      final now = snapshot.fetchedAt ?? DateTime.now();
+      final samples = <Map<String, dynamic>>[];
+
+      if (snapshot.steps != null) {
+        samples.add({
+          'type': 'steps',
+          'value': snapshot.steps,
+          'unit': 'count',
+          'measured_at': now.toUtc().toIso8601String(),
+        });
+      }
+      if (snapshot.avgHeartRateBpm != null && !snapshot.avgHeartRateBpm!.isNaN) {
+        samples.add({
+          'type': 'hr',
+          'value': snapshot.avgHeartRateBpm!.round(),
+          'unit': 'bpm',
+          'measured_at': now.toUtc().toIso8601String(),
+        });
+      }
+      if (snapshot.sleepHoursLastNight != null && !snapshot.sleepHoursLastNight!.isNaN) {
+        samples.add({
+          'type': 'sleep',
+          'value': snapshot.sleepHoursLastNight,
+          'unit': 'hours',
+          'measured_at': now.toUtc().toIso8601String(),
+        });
+      }
+      if (snapshot.weightKg != null && !snapshot.weightKg!.isNaN) {
+        samples.add({
+          'type': 'weight',
+          'value': snapshot.weightKg,
+          'unit': 'kg',
+          'measured_at': now.toUtc().toIso8601String(),
+        });
+      }
+
+      if (samples.isEmpty) return false;
+
+      final response = await http
+          .post(
+            Uri.parse('$apiBase/api/health/sync'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${session.accessToken}',
+            },
+            body: jsonEncode({'samples': samples}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      return response.statusCode == 201;
+    } catch (e) {
+      debugPrint('[health] syncToServer failed: $e');
+      return false;
+    }
   }
 }
