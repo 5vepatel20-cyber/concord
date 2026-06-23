@@ -9,7 +9,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/result/result.dart';
+import '../../core/storage/database_provider.dart';
 import '../../core/voice/speech_service.dart';
+import '../../core/widgets/symptom_widget_data.dart';
 import '../../data/models/condition.dart';
 import '../../data/repositories/symptom_repository.dart';
 import '../../data/repositories/vocab_repository.dart';
@@ -128,10 +130,12 @@ class _QuickLogFormState extends ConsumerState<_QuickLogForm> {
   String? _emergencyGuidance;
 
   // ── SYM-05 voice input state ──
-  bool _speechReady = false;     // init() returned true (plugin available)
-  bool _isListening = false;     // actively listening right now
-  bool _hadFinalBefore = false;  // last utterance for this mic session ended in a final
-  int _lastPartialLength = 0;    // char count of the partial currently appended to notes
+  bool _speechReady = false; // init() returned true (plugin available)
+  bool _isListening = false; // actively listening right now
+  bool _hadFinalBefore =
+      false; // last utterance for this mic session ended in a final
+  int _lastPartialLength =
+      0; // char count of the partial currently appended to notes
   StreamSubscription<SpeechEvent>? _speechSub;
 
   List<VocabSymptomTerm> get _termsForCondition {
@@ -200,9 +204,9 @@ class _QuickLogFormState extends ConsumerState<_QuickLogForm> {
           _hadFinalBefore = false;
           _lastPartialLength = 0;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Voice input: $reason')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Voice input: $reason')));
       case SpeechStopped():
         setState(() {
           _isListening = false;
@@ -253,7 +257,9 @@ class _QuickLogFormState extends ConsumerState<_QuickLogForm> {
       _error = null;
       _emergencyGuidance = null;
     });
-    final res = await ref.read(symptomRepositoryProvider).submit(
+    final res = await ref
+        .read(symptomRepositoryProvider)
+        .submit(
           SymptomReportInput(
             responses: Map.unmodifiable(_responses),
             occurredAt: _recall == RecallWindow.past7Days
@@ -267,12 +273,20 @@ class _QuickLogFormState extends ConsumerState<_QuickLogForm> {
     if (!mounted) return;
     switch (res) {
       case Ok(:final value):
+        // Refresh the home-screen widget with the new queue state.
+        () async {
+          try {
+            final db = await ref.read(appDatabaseProvider.future);
+            await SymptomWidgetService.updateFromDatabase(db);
+          } catch (_) {}
+        }();
         if (value.emergencyGuidance != null) {
           setState(() => _emergencyGuidance = value.emergencyGuidance);
-          // Don't auto-close — let the user read the guidance first.
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Saved. We\'ll sync when you\'re online.')),
+            const SnackBar(
+              content: Text('Saved. We\'ll sync when you\'re online.'),
+            ),
           );
           Navigator.of(context).pop();
           context.go('/home');
@@ -289,7 +303,10 @@ class _QuickLogFormState extends ConsumerState<_QuickLogForm> {
     final t = Theme.of(context);
     return ListView(
       padding: const EdgeInsets.fromLTRB(
-        Space.s5, Space.s2, Space.s5, Space.s6,
+        Space.s5,
+        Space.s2,
+        Space.s5,
+        Space.s6,
       ),
       children: [
         Text('How are you feeling?', style: t.textTheme.headlineSmall),
@@ -389,10 +406,7 @@ class _QuickLogFormState extends ConsumerState<_QuickLogForm> {
                   ? 'Listening — your words appear here'
                   : 'Anything else worth telling your care team',
               suffixIcon: _speechReady
-                  ? _MicButton(
-                      isListening: _isListening,
-                      onTap: _toggleMic,
-                    )
+                  ? _MicButton(isListening: _isListening, onTap: _toggleMic)
                   : null,
             ),
           ),
@@ -401,7 +415,9 @@ class _QuickLogFormState extends ConsumerState<_QuickLogForm> {
           const SizedBox(height: Space.s3),
           Text(
             _error!,
-            style: t.textTheme.bodySmall?.copyWith(color: SeverityColors.severe),
+            style: t.textTheme.bodySmall?.copyWith(
+              color: SeverityColors.severe,
+            ),
           ),
         ],
         if (_emergencyGuidance != null) ...[
@@ -419,7 +435,8 @@ class _QuickLogFormState extends ConsumerState<_QuickLogForm> {
           onPressed: _busy || _emergencyGuidance != null ? null : _submit,
           child: _busy
               ? const SizedBox(
-                  height: 18, width: 18,
+                  height: 18,
+                  width: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Text('Save symptom report'),
@@ -509,7 +526,10 @@ class _SymptomRow extends StatelessWidget {
 // without feeling alarming).
 
 class _EmergencyGuidanceCard extends StatefulWidget {
-  const _EmergencyGuidanceCard({required this.guidance, required this.onDismiss});
+  const _EmergencyGuidanceCard({
+    required this.guidance,
+    required this.onDismiss,
+  });
   final String guidance;
   final VoidCallback onDismiss;
 
@@ -563,8 +583,9 @@ class _EmergencyGuidanceCardState extends State<_EmergencyGuidanceCard>
                 const SizedBox(width: Space.s2),
                 Text(
                   'Severe symptom — read this',
-                  style: t.textTheme.titleSmall
-                      ?.copyWith(color: SeverityColors.severe),
+                  style: t.textTheme.titleSmall?.copyWith(
+                    color: SeverityColors.severe,
+                  ),
                 ),
               ],
             ),
@@ -646,9 +667,7 @@ class _MicPulseDotState extends State<_MicPulseDot>
           height: 8,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: SeverityColors.severe.withValues(
-              alpha: 0.55 + 0.45 * v,
-            ),
+            color: SeverityColors.severe.withValues(alpha: 0.55 + 0.45 * v),
           ),
         );
       },

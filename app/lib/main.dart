@@ -19,7 +19,9 @@ import 'core/monitoring/posthog_init.dart';
 import 'core/monitoring/sentry_init.dart';
 import 'core/notifications/medication_reminder_service.dart';
 import 'core/notifications/notification_service.dart';
+import 'core/storage/database_provider.dart';
 import 'core/sync/sync_service.dart';
+import 'core/widgets/symptom_widget_data.dart';
 import 'data/repositories/medication_repository.dart';
 import 'data/supabase/supabase_provider.dart';
 import 'features/profile/settings_storage.dart';
@@ -62,6 +64,17 @@ Future<void> main() async {
     // Start the sync service eagerly — it listens to connectivity + auth
     // state and drains the offline queue whenever conditions allow.
     container.read(syncServiceProvider);
+
+    // Refresh the home-screen widget with current queue state so the
+    // patient sees an accurate summary immediately (SYM-10).
+    () async {
+      try {
+        final db = await container.read(appDatabaseProvider.future);
+        await SymptomWidgetService.updateFromDatabase(db);
+      } catch (_) {
+        // Widget update is best-effort; don't block boot.
+      }
+    }();
 
     // Initialize the notification plugin and re-schedule the daily check-in
     // if it was previously enabled. We don't request permission here —

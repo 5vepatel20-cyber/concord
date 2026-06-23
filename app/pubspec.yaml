@@ -82,6 +82,10 @@ dependencies:
   # recognizer: SFSpeechRecognizer on iOS, RecognitionService on Android.
   speech_to_text: ^7.4.0
 
+  # Home-screen widget support (SYM-10). Provides a unified interface for
+  # creating Android/iOS home-screen widgets via native code.
+  home_widget: ^0.9.3
+
   # Document capture: camera / photo picker (DOC-01).
   image_picker: ^1.1.2
 

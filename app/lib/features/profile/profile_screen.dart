@@ -107,6 +107,16 @@ class ProfileScreen extends ConsumerWidget {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push('/medications'),
                 ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.bar_chart_outlined),
+                  title: const Text('Adherence'),
+                  subtitle: const Text(
+                    'View your medication adherence rates over time.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/medications/adherence'),
+                ),
               ],
             ),
 

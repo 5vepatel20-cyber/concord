@@ -13,6 +13,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:go_router/go_router.dart';
+
 import '../../core/clock/clock.dart';
 import '../../core/notifications/medication_reminder_service.dart';
 import '../../data/models/medication.dart';
@@ -21,8 +23,8 @@ import '../../theme/tokens.dart';
 
 final medicationsListProvider =
     AsyncNotifierProvider<_MedicationsListController, List<Medication>>(
-  _MedicationsListController.new,
-);
+      _MedicationsListController.new,
+    );
 
 class _MedicationsListController extends AsyncNotifier<List<Medication>> {
   @override
@@ -87,6 +89,11 @@ class MedicationsScreen extends ConsumerWidget {
         title: const Text('Medications'),
         actions: [
           IconButton(
+            tooltip: 'Adherence stats',
+            onPressed: () => context.push('/medications/adherence'),
+            icon: const Icon(Icons.bar_chart_outlined),
+          ),
+          IconButton(
             tooltip: 'Refresh',
             onPressed: () =>
                 ref.read(medicationsListProvider.notifier).refresh(),
@@ -102,7 +109,8 @@ class MedicationsScreen extends ConsumerWidget {
       body: SafeArea(
         child: medsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => _ErrorState(message: 'Couldn\'t load medications: $e'),
+          error: (e, _) =>
+              _ErrorState(message: 'Couldn\'t load medications: $e'),
           data: (meds) {
             if (meds.isEmpty) return const _EmptyState();
             return RefreshIndicator(
@@ -126,7 +134,10 @@ class _MedicationList extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(
-        Space.s5, Space.s3, Space.s5, Space.s10,
+        Space.s5,
+        Space.s3,
+        Space.s5,
+        Space.s10,
       ),
       itemCount: meds.length,
       separatorBuilder: (_, _) => const SizedBox(height: Space.s3),
@@ -195,8 +206,9 @@ class _MedicationCard extends ConsumerWidget {
                           medication.dose,
                           medication.unit,
                         ].whereType<String>().join(' '),
-                        style: t.textTheme.bodyMedium
-                            ?.copyWith(color: Neutrals.slate),
+                        style: t.textTheme.bodyMedium?.copyWith(
+                          color: Neutrals.slate,
+                        ),
                       ),
                     ],
                   ],
@@ -215,9 +227,8 @@ class _MedicationCard extends ConsumerWidget {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _log(
-                      context, ref, AdherenceStatus.skipped,
-                    ),
+                    onPressed: () =>
+                        _log(context, ref, AdherenceStatus.skipped),
                     icon: const Icon(Icons.close, size: 18),
                     label: const Text('Skip'),
                   ),
@@ -225,9 +236,7 @@ class _MedicationCard extends ConsumerWidget {
                 const SizedBox(width: Space.s2),
                 Expanded(
                   child: FilledButton.icon(
-                    onPressed: () => _log(
-                      context, ref, AdherenceStatus.taken,
-                    ),
+                    onPressed: () => _log(context, ref, AdherenceStatus.taken),
                     icon: const Icon(Icons.check, size: 18),
                     label: const Text('Taken'),
                   ),
@@ -293,11 +302,7 @@ class _EmptyState extends StatelessWidget {
       padding: const EdgeInsets.all(Space.s5),
       children: [
         const SizedBox(height: Space.s10),
-        Icon(
-          Icons.medication_outlined,
-          size: 64,
-          color: Neutrals.hint,
-        ),
+        Icon(Icons.medication_outlined, size: 64, color: Neutrals.hint),
         const SizedBox(height: Space.s4),
         Text(
           'No medications yet',

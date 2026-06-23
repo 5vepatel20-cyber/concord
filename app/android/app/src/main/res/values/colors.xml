@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_bg">#1A1A2E</color>
+    <color name="widget_border">#2A2A3E</color>
+    <color name="widget_text_primary">#FFFFFFFF</color>
+    <color name="widget_text_secondary">#B0B0C0</color>
+    <color name="widget_text_muted">#707080</color>
+    <color name="widget_accent">#7C5CFC</color>
+    <color name="widget_grade_none">#707080</color>
+    <color name="widget_grade_mild">#4CAF50</color>
+    <color name="widget_grade_moderate">#FF9800</color>
+    <color name="widget_grade_severe">#F44336</color>
+</resources>
