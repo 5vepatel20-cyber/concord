@@ -113,6 +113,23 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
 
+            // Care team management (CARE-01).
+            const SizedBox(height: Space.s5),
+            _SectionHeader('Care team'),
+            _SettingsCard(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.favorite_outline),
+                  title: const Text('Manage care team'),
+                  subtitle: const Text(
+                    'Invite caregivers to view your data and receive alerts.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/caregiver/manage'),
+                ),
+              ],
+            ),
+
             // Document decode (DOC-01..05).
             const SizedBox(height: Space.s5),
             _SectionHeader('Documents'),

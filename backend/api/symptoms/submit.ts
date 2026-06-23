@@ -17,6 +17,7 @@ import { evaluateRules } from "../../_lib/alerts/rules.js";
 import { detectWorsening } from "../../_lib/pro-ctcae/worsening.js";
 import { initSentry, Sentry } from "../../_lib/sentry.js";
 import { corsed, preflight, corsedJsonError } from "../../_lib/cors.js";
+import { sendEmail, alertNotificationEmail } from "../../_lib/notifications/email.js";
 
 export const config = {
   runtime: "nodejs",
@@ -190,6 +191,52 @@ export const POST = async (req: Request): Promise<Response> => {
       Sentry.captureException(alertErr);
     } else {
       alertsCreated = alertRows.length;
+    }
+  }
+
+  // ALRT-04: Notify caregivers when urgent/emergency alerts fire.
+  if (alertsCreated > 0) {
+    const urgentAlerts = generatedAlerts.filter((a) => a.severity_level === "urgent" || a.severity_level === "emergency");
+    if (urgentAlerts.length > 0) {
+      try {
+        const { data: caregivers } = await supabase
+          .from("care_relationship")
+          .select("member_user_id")
+          .eq("patient_id", user.id)
+          .eq("status", "active")
+          .contains("permissions", { receives_alerts: true });
+
+        if (caregivers && caregivers.length > 0) {
+          const caregiverIds = caregivers.map((c) => c.member_user_id);
+          const { data: caregiverUsers } = await supabase
+            .from("user")
+            .select("email, full_name")
+            .in("id", caregiverIds);
+
+          if (caregiverUsers && caregiverUsers.length > 0) {
+            const topSeverity = urgentAlerts.some((a) => a.severity_level === "emergency") ? "emergency" : "urgent";
+            const patientName = user.email ?? "Your loved one";
+            const symptomCodes = body.responses.map((r) => r.pro_ctcae_code);
+
+            for (const cg of caregiverUsers) {
+              if (cg.email) {
+                await sendEmail({
+                  to: cg.email,
+                  subject: `[${topSeverity === "emergency" ? "URGENT" : "Alert"}] ${patientName} needs attention`,
+                  html: alertNotificationEmail({
+                    patientName,
+                    severity: topSeverity,
+                    symptomNames: [...new Set(symptomCodes)],
+                    signInUrl: "https://concord.health/sign-in",
+                  }),
+                });
+              }
+            }
+          }
+        }
+      } catch (notifErr) {
+        Sentry.captureException(notifErr);
+      }
     }
   }
 

@@ -25,6 +25,7 @@ import 'features/atlas/chat_screen.dart';
 import 'features/atlas/visit_prep_screen.dart';
 import 'features/auth/auth_controller.dart';
 import 'features/auth/forgot_password_screen.dart';
+import 'features/caregiver/caregiver_management_screen.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/auth/sign_up_screen.dart';
 import 'features/documents/document_decode_screen.dart';
@@ -190,6 +191,12 @@ GoRouter _buildRouter(WidgetRef ref) {
       GoRoute(
         path: '/trials/search',
         builder: (_, _) => const TrialSearchScreen(),
+      ),
+
+      // Caregiver management (CARE-01). Full-screen push from Profile.
+      GoRoute(
+        path: '/caregiver/manage',
+        builder: (_, _) => const CaregiverManagementScreen(),
       ),
 
       // Authenticated shell — 5 branches.
