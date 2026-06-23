@@ -48,6 +48,7 @@ import 'features/vitals/health_metrics_screen.dart';
 import 'features/vitals/manual_entry_screen.dart';
 import 'features/treatment/treatment_calendar_screen.dart';
 import 'features/treatment/chemo_regimen_screen.dart';
+import 'features/alerts/escalation_policy_screen.dart';
 import 'theme/theme_data.dart';
 
 class ConcordApp extends ConsumerStatefulWidget {
@@ -239,6 +240,12 @@ GoRouter _buildRouter(WidgetRef ref) {
       GoRoute(
         path: '/treatment/regimens',
         builder: (_, _) => const ChemoRegimenScreen(),
+      ),
+
+      // Escalation policies (ALRT-06). Full-screen push from Profile.
+      GoRoute(
+        path: '/alerts/policies',
+        builder: (_, _) => const EscalationPolicyScreen(),
       ),
 
       // Authenticated shell — 5 branches.

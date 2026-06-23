@@ -8,9 +8,9 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { compositeGrade, type Grade } from "../pro-ctcae/scorer.js";
 import { evaluateRules } from "../alerts/rules.js";
+import { evaluateEscalation } from "../alerts/escalation.js";
 import { detectWorsening } from "../pro-ctcae/worsening.js";
 import { Sentry } from "../sentry.js";
-import { sendEmail, alertNotificationEmail } from "../notifications/email.js";
 
 const Attr = z.number().int().min(0).max(4).nullable();
 
@@ -145,52 +145,19 @@ export async function createSymptomReport(opts: CreateReportOpts): Promise<Creat
     }
   }
 
-  // Notify caregivers on urgent/emergency alerts.
+  // Evaluate escalation policies (ALRT-06) — routes notifications based on
+  // severity, time of day, and target role. Falls back to default caregiver
+  // notify if no custom policies are configured.
   if (alertsCreated > 0) {
-    const urgentAlerts = generatedAlerts.filter(
-      (a) => a.severity_level === "urgent" || a.severity_level === "emergency",
-    );
-    if (urgentAlerts.length > 0) {
-      try {
-        const { data: caregivers } = await supabase
-          .from("care_relationship")
-          .select("member_user_id")
-          .eq("patient_id", patientId)
-          .eq("status", "active")
-          .contains("permissions", { receives_alerts: true });
-
-        if (caregivers && caregivers.length > 0) {
-          const caregiverIds = caregivers.map((c) => c.member_user_id);
-          const { data: caregiverUsers } = await supabase
-            .from("user")
-            .select("email, full_name")
-            .in("id", caregiverIds);
-
-          if (caregiverUsers && caregiverUsers.length > 0) {
-            const topSeverity = urgentAlerts.some((a) => a.severity_level === "emergency")
-              ? "emergency"
-              : "urgent";
-            const symptomCodes = responses.map((r) => r.pro_ctcae_code);
-
-            for (const cg of caregiverUsers) {
-              if (cg.email) {
-                await sendEmail({
-                  to: cg.email,
-                  subject: `[${topSeverity === "emergency" ? "URGENT" : "Alert"}] Your loved one needs attention`,
-                  html: alertNotificationEmail({
-                    patientName: "Your loved one",
-                    severity: topSeverity,
-                    symptomNames: [...new Set(symptomCodes)],
-                    signInUrl: "https://concord.health/sign-in",
-                  }),
-                });
-              }
-            }
-          }
-        }
-      } catch (notifErr) {
-        Sentry.captureException(notifErr);
-      }
+    try {
+      const alertInfos = generatedAlerts.map((a) => ({
+        id: a.rule_id,
+        severity_level: a.severity_level,
+      }));
+      const symptomCodes = responses.map((r) => r.pro_ctcae_code);
+      await evaluateEscalation(patientId, alertInfos, symptomCodes);
+    } catch (notifErr) {
+      Sentry.captureException(notifErr);
     }
   }
 

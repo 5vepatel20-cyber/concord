@@ -174,6 +174,16 @@ class ProfileScreen extends ConsumerWidget {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push('/caregiver/dashboard'),
                 ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.policy_outlined),
+                  title: const Text('Escalation policies'),
+                  subtitle: const Text(
+                    'Route alerts by severity, time, and role.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/alerts/policies'),
+                ),
               ],
             ),
 
