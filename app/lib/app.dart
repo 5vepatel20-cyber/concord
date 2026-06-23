@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/notifications/notification_service.dart';
+import 'core/sync/sync_service.dart';
 import 'features/atlas/chat_screen.dart';
 import 'features/atlas/visit_prep_screen.dart';
 import 'features/auth/auth_controller.dart';
@@ -68,6 +69,11 @@ class _ConcordAppState extends ConsumerState<ConcordApp> {
   @override
   void initState() {
     super.initState();
+
+    // Eagerly initialize the sync service so it starts listening to
+    // connectivity and auth changes immediately (SYM-09).
+    ref.read(syncServiceProvider);
+
     _router = _buildRouter(ref);
 
     final notif = ref.read(notificationServiceProvider);

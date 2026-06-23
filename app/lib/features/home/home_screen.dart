@@ -13,6 +13,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/health/health_repository.dart';
+import '../../core/sync/pending_count_provider.dart';
 import '../../data/supabase/supabase_provider.dart';
 import '../../theme/tokens.dart';
 import '../../theme/typography.dart';
@@ -75,6 +76,8 @@ class HomeScreen extends ConsumerWidget {
               'How are you feeling today?',
               style: t.textTheme.bodyLarge?.copyWith(color: Neutrals.slate),
             ),
+            const SizedBox(height: Space.s2),
+            const _PendingSyncBadge(),
             const SizedBox(height: Space.s5),
             const QuickLogWidget(),
             const SizedBox(height: Space.s3),
@@ -99,6 +102,38 @@ class HomeScreen extends ConsumerWidget {
     if (now.hour < 12) return 'Good morning';
     if (now.hour < 17) return 'Good afternoon';
     return 'Good evening';
+  }
+}
+
+/// Shows a compact badge when there are pending sync items.
+class _PendingSyncBadge extends ConsumerWidget {
+  const _PendingSyncBadge();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pendingAsync = ref.watch(pendingSyncCountProvider);
+    return pendingAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (count) {
+        if (count == 0) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(bottom: Space.s2),
+          child: Row(
+            children: [
+              const Icon(Icons.sync, size: 14, color: Neutrals.slate),
+              const SizedBox(width: Space.s1),
+              Text(
+                '$count item${count == 1 ? '' : 's'} waiting to sync',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Neutrals.slate),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 
