@@ -186,6 +186,23 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            const SizedBox(height: Space.s5),
+            _SectionHeader('Messages'),
+            _SettingsCard(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.chat_bubble_outline),
+                  title: const Text('Inbox'),
+                  subtitle: const Text(
+                    'Secure messages with your care team.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/messages'),
+                ),
+              ],
+            ),
+              ],
+            ),
 
             // Document decode (DOC-01..05).
             const SizedBox(height: Space.s5),

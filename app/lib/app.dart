@@ -49,6 +49,8 @@ import 'features/vitals/manual_entry_screen.dart';
 import 'features/treatment/treatment_calendar_screen.dart';
 import 'features/treatment/chemo_regimen_screen.dart';
 import 'features/alerts/escalation_policy_screen.dart';
+import 'features/messages/inbox_screen.dart';
+import 'features/messages/message_thread_screen.dart';
 import 'theme/theme_data.dart';
 
 class ConcordApp extends ConsumerStatefulWidget {
@@ -246,6 +248,16 @@ GoRouter _buildRouter(WidgetRef ref) {
       GoRoute(
         path: '/alerts/policies',
         builder: (_, _) => const EscalationPolicyScreen(),
+      ),
+
+      // Secure messaging (CLIN-07). Full-screen push from Profile.
+      GoRoute(path: '/messages', builder: (_, _) => const InboxScreen()),
+      GoRoute(
+        path: '/messages/:conversationId',
+        builder: (_, state) {
+          final convId = state.pathParameters['conversationId']!;
+          return MessageThreadScreen(conversationId: convId);
+        },
       ),
 
       // Authenticated shell — 5 branches.
