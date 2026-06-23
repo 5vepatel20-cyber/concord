@@ -7,9 +7,12 @@
 // - Data: consent version (read-only — captured at onboarding).
 // - About: app version + privacy policy link stub.
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 
 import '../../core/notifications/notification_service.dart';
 import '../../data/supabase/supabase_provider.dart';
@@ -45,6 +48,34 @@ class ProfileScreen extends ConsumerWidget {
                   leading: const Icon(Icons.email_outlined),
                   title: const Text('Email'),
                   subtitle: Text(user?.email ?? '(not signed in)'),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.medication_outlined),
+                  title: const Text('My condition'),
+                  subtitle: const Text('Tap to change'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    final result = await context.push<Map<String, String>>('/conditions/pick');
+                    if (result == null || !context.mounted) return;
+                    final session = supabase.auth.currentSession;
+                    if (session == null) return;
+                    try {
+                      await http.post(
+                        Uri.parse('${ref.read(apiBaseUrlProvider)}/api/conditions/select'),
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': 'Bearer ${session.accessToken}',
+                        },
+                        body: jsonEncode({'condition_id': result['id']}),
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Condition updated to ${result['label']}')),
+                        );
+                      }
+                    } catch (_) {}
+                  },
                 ),
                 const Divider(height: 1),
                 ListTile(

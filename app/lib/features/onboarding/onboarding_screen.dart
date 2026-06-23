@@ -31,14 +31,15 @@ class OnboardingScreen extends ConsumerWidget {
     final state = ref.watch(onboardingControllerProvider);
     return Scaffold(
       appBar: AppBar(
-        title: Text('Setup · step ${state.step + 1} of ${OnboardingState.totalSteps}'),
+        title: Text(
+          'Setup · step ${state.step + 1} of ${OnboardingState.totalSteps}',
+        ),
         leading: state.step == 0
             ? null
             : IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: () => ref
-                    .read(onboardingControllerProvider.notifier)
-                    .back(),
+                onPressed: () =>
+                    ref.read(onboardingControllerProvider.notifier).back(),
               ),
       ),
       body: SafeArea(
@@ -73,7 +74,9 @@ class _StepNameState extends ConsumerState<_StepName> {
   @override
   void initState() {
     super.initState();
-    _ctrl = TextEditingController(text: ref.read(onboardingControllerProvider).fullName);
+    _ctrl = TextEditingController(
+      text: ref.read(onboardingControllerProvider).fullName,
+    );
   }
 
   @override
@@ -117,11 +120,33 @@ class _StepNameState extends ConsumerState<_StepName> {
 
 // ── Step 1: condition selection ──────────────────────────────────────────────
 
-class _StepCondition extends ConsumerWidget {
+class _StepCondition extends ConsumerStatefulWidget {
   const _StepCondition();
+  @override
+  ConsumerState<_StepCondition> createState() => _StepConditionState();
+}
+
+class _StepConditionState extends ConsumerState<_StepCondition> {
+  final _searchCtrl = TextEditingController();
+  String _query = '';
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  static const _categoryLabels = {
+    'oncology': 'Cancer types',
+    'cardiometabolic': 'Cardiovascular & metabolic',
+    'autoimmune': 'Autoimmune',
+    'respiratory': 'Respiratory',
+    'mental_health': 'Mental health',
+    'other': 'Other',
+  };
+
+  @override
+  Widget build(BuildContext context) {
     final t = Theme.of(context);
     final state = ref.watch(onboardingControllerProvider);
     final vocabAsync = ref.watch(vocabSnapshotProvider);
@@ -129,41 +154,103 @@ class _StepCondition extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('What condition are you being treated for?',
-            style: t.textTheme.headlineSmall),
+        Text(
+          'What condition are you being treated for?',
+          style: t.textTheme.headlineSmall,
+        ),
         const SizedBox(height: Space.s2),
         Text(
           'Pick the closest match. Your care team can refine this later.',
           style: t.textTheme.bodyMedium?.copyWith(color: Neutrals.slate),
         ),
-        const SizedBox(height: Space.s5),
+        const SizedBox(height: Space.s4),
+        TextField(
+          controller: _searchCtrl,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.search, size: 20),
+            hintText: 'Search conditions…',
+            isDense: true,
+          ),
+          onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+        ),
+        const SizedBox(height: Space.s3),
         Expanded(
           child: vocabAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(
-              child: Text('Couldn\'t load conditions: $e'),
-            ),
-            data: (snapshot) => ListView(
-              children: [
-                for (final c in snapshot)
-                  RadioListTile<String>(
-                    title: Text(c.condition.displayName),
-                    subtitle: c.condition.icd10Code == null
-                        ? null
-                        : Text('ICD-10: ${c.condition.icd10Code}'),
-                    value: c.condition.id,
-                    // ignore: deprecated_member_use
-                    groupValue: state.primaryConditionId,
-                    // ignore: deprecated_member_use
-                    onChanged: (v) {
-                      if (v == null) return;
-                      ref
-                          .read(onboardingControllerProvider.notifier)
-                          .setCondition(id: v, label: c.condition.displayName);
-                    },
+            error: (e, _) =>
+                Center(child: Text('Couldn\'t load conditions: $e')),
+            data: (snapshot) {
+              final filtered = _query.isEmpty
+                  ? snapshot
+                  : snapshot.where((c) {
+                      final name = c.condition.displayName.toLowerCase();
+                      final code = c.condition.icd10Code?.toLowerCase() ?? '';
+                      return name.contains(_query) || code.contains(_query);
+                    }).toList();
+
+              // Group by category, preserving original order.
+              final grouped = <String, List<ConditionWithTerms>>{};
+              for (final c in filtered) {
+                grouped.putIfAbsent(c.condition.category, () => []);
+                grouped[c.condition.category]!.add(c);
+              }
+
+              if (filtered.isEmpty) {
+                return Center(
+                  child: Text(
+                    _query.isEmpty
+                        ? 'No conditions loaded.'
+                        : 'No conditions match "$_query".',
+                    style: t.textTheme.bodyMedium?.copyWith(
+                      color: Neutrals.hint,
+                    ),
                   ),
-              ],
-            ),
+                );
+              }
+
+              return ListView(
+                children: [
+                  for (final entry in grouped.entries) ...[
+                    if (entry.value.isNotEmpty) ...[
+                      Padding(
+                        padding: EdgeInsets.only(
+                          top: entry.key == grouped.keys.first ? 0 : Space.s3,
+                          bottom: Space.s1,
+                        ),
+                        child: Text(
+                          _categoryLabels[entry.key] ?? entry.key,
+                          style: t.textTheme.labelSmall?.copyWith(
+                            color: Neutrals.hint,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      for (final c in entry.value)
+                        RadioListTile<String>(
+                          dense: true,
+                          title: Text(c.condition.displayName),
+                          subtitle: c.condition.icd10Code == null
+                              ? null
+                              : Text('ICD-10: ${c.condition.icd10Code}'),
+                          value: c.condition.id,
+                          // ignore: deprecated_member_use
+                          groupValue: state.primaryConditionId,
+                          // ignore: deprecated_member_use
+                          onChanged: (v) {
+                            if (v == null) return;
+                            ref
+                                .read(onboardingControllerProvider.notifier)
+                                .setCondition(
+                                  id: v,
+                                  label: c.condition.displayName,
+                                );
+                          },
+                        ),
+                    ],
+                  ],
+                ],
+              );
+            },
           ),
         ),
         FilledButton(
@@ -209,9 +296,8 @@ class _StepDiagnosis extends ConsumerWidget {
             hintText: 'I, II, III, IV — your care team can clarify',
           ),
           textCapitalization: TextCapitalization.characters,
-          onChanged: (v) => ref
-              .read(onboardingControllerProvider.notifier)
-              .setCancerStage(v),
+          onChanged: (v) =>
+              ref.read(onboardingControllerProvider.notifier).setCancerStage(v),
         ),
         const SizedBox(height: Space.s5),
         Text('Where are you now?', style: t.textTheme.titleSmall),
@@ -275,9 +361,8 @@ class _StepDemographics extends ConsumerWidget {
           value: state.dateOfBirth,
           firstDate: DateTime(1900),
           lastDate: DateTime.now(),
-          onChanged: (d) => ref
-              .read(onboardingControllerProvider.notifier)
-              .setDateOfBirth(d),
+          onChanged: (d) =>
+              ref.read(onboardingControllerProvider.notifier).setDateOfBirth(d),
         ),
         const SizedBox(height: Space.s4),
         Text('Sex at birth', style: t.textTheme.titleSmall),
@@ -285,7 +370,12 @@ class _StepDemographics extends ConsumerWidget {
         Wrap(
           spacing: Space.s2,
           children: [
-            for (final s in const ['female', 'male', 'intersex', 'prefer_not_to_say'])
+            for (final s in const [
+              'female',
+              'male',
+              'intersex',
+              'prefer_not_to_say',
+            ])
               ChoiceChip(
                 label: Text(_sexLabel(s)),
                 selected: state.sexAtBirth == s,
@@ -309,10 +399,14 @@ class _StepDemographics extends ConsumerWidget {
 
 String _sexLabel(String s) {
   switch (s) {
-    case 'female': return 'Female';
-    case 'male': return 'Male';
-    case 'intersex': return 'Intersex';
-    case 'prefer_not_to_say': return 'Prefer not to say';
+    case 'female':
+      return 'Female';
+    case 'male':
+      return 'Male';
+    case 'intersex':
+      return 'Intersex';
+    case 'prefer_not_to_say':
+      return 'Prefer not to say';
   }
   return s;
 }
@@ -355,7 +449,8 @@ class _StepHealthPriming extends ConsumerWidget {
         _HealthMetricTile(
           icon: Icons.monitor_weight_outlined,
           title: 'Weight',
-          subtitle: 'Track weight changes that may signal fluid shifts or nutrition needs.',
+          subtitle:
+              'Track weight changes that may signal fluid shifts or nutrition needs.',
         ),
         const SizedBox(height: Space.s5),
         Text(
@@ -373,7 +468,8 @@ class _StepHealthPriming extends ConsumerWidget {
         ),
         const SizedBox(height: Space.s5),
         FilledButton(
-          onPressed: () => ref.read(onboardingControllerProvider.notifier).next(),
+          onPressed: () =>
+              ref.read(onboardingControllerProvider.notifier).next(),
           child: const Text('Continue'),
         ),
       ],
@@ -404,7 +500,10 @@ class _HealthMetricTile extends StatelessWidget {
             children: [
               Text(title, style: t.textTheme.titleSmall),
               const SizedBox(height: Space.s1),
-              Text(subtitle, style: t.textTheme.bodySmall?.copyWith(color: Neutrals.slate)),
+              Text(
+                subtitle,
+                style: t.textTheme.bodySmall?.copyWith(color: Neutrals.slate),
+              ),
             ],
           ),
         ),
@@ -530,7 +629,9 @@ class _StepConsentState extends ConsumerState<_StepConsent> {
           const SizedBox(height: Space.s3),
           Text(
             _error!,
-            style: t.textTheme.bodySmall?.copyWith(color: SeverityColors.severe),
+            style: t.textTheme.bodySmall?.copyWith(
+              color: SeverityColors.severe,
+            ),
           ),
         ],
         const SizedBox(height: Space.s5),
@@ -538,7 +639,8 @@ class _StepConsentState extends ConsumerState<_StepConsent> {
           onPressed: !state.isStep5Valid || _busy ? null : _submit,
           child: _busy
               ? const SizedBox(
-                  height: 18, width: 18,
+                  height: 18,
+                  width: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Text('Finish setup'),

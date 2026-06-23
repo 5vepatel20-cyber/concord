@@ -36,6 +36,7 @@ import 'features/log/log_landing_screen.dart';
 import 'features/medications/medications_screen.dart';
 import 'features/medications/add_medication_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
+import 'features/onboarding/condition_picker_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/profile/settings_storage.dart';
 import 'features/report/one_pager_screen.dart';
@@ -205,6 +206,12 @@ GoRouter _buildRouter(WidgetRef ref) {
       GoRoute(
         path: '/trials/search',
         builder: (_, _) => const TrialSearchScreen(),
+      ),
+
+      // Condition picker (ONB-01). Full-screen push from Profile.
+      GoRoute(
+        path: '/conditions/pick',
+        builder: (_, _) => const ConditionPickerScreen(),
       ),
 
       // Caregiver management (CARE-01). Full-screen push from Profile.
