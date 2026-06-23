@@ -56,12 +56,15 @@ export const POST = async (req: Request): Promise<Response> => {
     return corsedJsonError(req, 400, "bad_request", e instanceof Error ? e.message : "Invalid JSON body");
   }
 
-  // ATLAS-02: pull the patient's last 7 days of graded symptom responses
-  // and prepend a context block to the system prompt.
-  const context = await loadRecentSymptomContext(user.id);
+  // ATLAS-02: pull the patient's last 7 days of graded symptom responses.
+  // ATLAS-03: pull active medications + recent adherence.
+  const [symptomCtx, medCtx] = await Promise.all([
+    loadRecentSymptomContext(user.id),
+    loadRecentMedicationContext(user.id),
+  ]);
   const systemMessage: ChatMessage = {
     role: "system",
-    content: `${SYSTEM_PROMPT}\n\n${context}`,
+    content: `${SYSTEM_PROMPT}\n\n${symptomCtx}\n\n${medCtx}`,
   };
   const messages: ChatMessage[] = [systemMessage, ...body.messages];
 
@@ -109,6 +112,70 @@ export const POST = async (req: Request): Promise<Response> => {
     }),
   );
 };
+
+/**
+ * Build a short context block describing the patient's active medications
+ * and recent adherence. Returns a placeholder if there's no data yet.
+ *
+ * ATLAS-03: Inject active meds + adherence into Atlas context so the AI
+ * can answer questions about what the patient is taking and whether they
+ * have been adherent.
+ */
+async function loadRecentMedicationContext(userId: string): Promise<string> {
+  try {
+    const supabase = serviceClient();
+
+    // Active medications.
+    const { data: meds, error: medsErr } = await supabase
+      .from("medication")
+      .select("id, display_name, dose, unit, route, schedule")
+      .eq("patient_id", userId)
+      .eq("active", true);
+
+    if (medsErr) {
+      Sentry.captureException(medsErr);
+      return "[Medication context unavailable.]";
+    }
+
+    if (!meds || meds.length === 0) {
+      return "[Patient has no active medications on file.]";
+    }
+
+    const medLines = meds.map((m) => {
+      const sched = typeof m.schedule === "object" && m.schedule !== null
+        ? (m.schedule as Record<string, unknown>)
+        : {};
+      const freq = (sched["frequency"] as string) ?? "unknown";
+      const parts = [m.display_name];
+      if (m.dose) parts.push(`${m.dose}${m.unit ?? ""}`);
+      parts.push(`route: ${m.route}`);
+      parts.push(`frequency: ${freq}`);
+      return `- ${parts.join(", ")}`;
+    });
+
+    // Recent adherence (last 7 days).
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: events, error: eventsErr } = await supabase
+      .from("medication_event")
+      .select("medication_id, status, scheduled_for")
+      .in(
+        "medication_id",
+        meds.map((m) => m.id),
+      )
+      .gte("scheduled_for", sevenDaysAgo);
+
+    if (!eventsErr && events && events.length > 0) {
+      const total = events.length;
+      const taken = events.filter((e) => e.status === "taken" || e.status === "taken_late").length;
+      const adherencePct = Math.round((taken / total) * 100);
+      medLines.push(`Adherence (last 7 days): ${adherencePct}% (${taken}/${total} doses taken)`);
+    }
+
+    return `[Patient's active medications]\n${medLines.join("\n")}`;
+  } catch {
+    return "[Medication context unavailable.]";
+  }
+}
 
 /**
  * Build a short context block describing the patient's last 7 days of
