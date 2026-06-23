@@ -207,6 +207,16 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const Divider(height: 1),
                 ListTile(
+                  leading: const Icon(Icons.notifications_active_outlined),
+                  title: const Text('Alert history'),
+                  subtitle: const Text(
+                    'View and acknowledge symptom alerts.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/alerts'),
+                ),
+                const Divider(height: 1),
+                ListTile(
                   leading: const Icon(Icons.policy_outlined),
                   title: const Text('Escalation policies'),
                   subtitle: const Text(

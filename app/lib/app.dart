@@ -50,6 +50,7 @@ import 'features/vitals/health_metrics_screen.dart';
 import 'features/vitals/manual_entry_screen.dart';
 import 'features/treatment/treatment_calendar_screen.dart';
 import 'features/treatment/chemo_regimen_screen.dart';
+import 'features/alerts/alert_list_screen.dart';
 import 'features/alerts/escalation_policy_screen.dart';
 import 'features/messages/inbox_screen.dart';
 import 'features/messages/message_thread_screen.dart';
@@ -256,6 +257,9 @@ GoRouter _buildRouter(WidgetRef ref) {
         path: '/treatment/regimens',
         builder: (_, _) => const ChemoRegimenScreen(),
       ),
+
+      // Alert list (ALRT-06). Full-screen push from Profile.
+      GoRoute(path: '/alerts', builder: (_, _) => const AlertListScreen()),
 
       // Escalation policies (ALRT-06). Full-screen push from Profile.
       GoRoute(
