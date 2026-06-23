@@ -47,6 +47,7 @@ import 'features/trials/trial_search_screen.dart';
 import 'features/vitals/health_metrics_screen.dart';
 import 'features/vitals/manual_entry_screen.dart';
 import 'features/treatment/treatment_calendar_screen.dart';
+import 'features/treatment/chemo_regimen_screen.dart';
 import 'theme/theme_data.dart';
 
 class ConcordApp extends ConsumerStatefulWidget {
@@ -232,6 +233,12 @@ GoRouter _buildRouter(WidgetRef ref) {
       GoRoute(
         path: '/treatment/calendar',
         builder: (_, _) => const TreatmentCalendarScreen(),
+      ),
+
+      // Chemo regimens (MED-03). Full-screen push from Profile.
+      GoRoute(
+        path: '/treatment/regimens',
+        builder: (_, _) => const ChemoRegimenScreen(),
       ),
 
       // Authenticated shell — 5 branches.

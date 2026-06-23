@@ -137,6 +137,16 @@ class ProfileScreen extends ConsumerWidget {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push('/treatment/calendar'),
                 ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.iv_bag),
+                  title: const Text('Chemo regimens'),
+                  subtitle: const Text(
+                    'Create cyclical chemo schedule templates.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/treatment/regimens'),
+                ),
               ],
             ),
 
