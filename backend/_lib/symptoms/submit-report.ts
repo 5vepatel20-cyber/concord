@@ -40,7 +40,7 @@ export interface CreateReportResult {
   responsesWritten: number;
   severeResponses: { term_code: string; body_location: string | null | undefined }[];
   alertsCreated: number;
-  worsening: Array<{ term_id: string; direction: string; current_grade: number; baseline_grade?: number }>;
+  worsening: Array<{ term_code: string; term_name: string; direction: string; current_avg_grade: number; baseline_avg_grade: number }>;
   emergencyGuidance: { title: string; body: string; callout: string } | null;
 }
 

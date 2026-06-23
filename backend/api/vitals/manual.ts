@@ -94,12 +94,12 @@ export const POST = async (req: Request): Promise<Response> => {
   await Promise.allSettled(promises);
 
   // Save notes separately (not part of health_metric_sample).
-  if (body.notes != null && body.notes.trim().isNotEmpty && saved.length > 0) {
+  if (body.notes != null && body.notes.trim().length > 0 && saved.length > 0) {
     await supabase
       .from("health_metric_sample")
       .update({ notes: body.notes.trim() })
       .eq("patient_id", user.id)
-      .eq("type", saved[0].type)
+      .eq("type", saved[0]!.type)
       .gte("measured_at", `${datePrefix}T00:00:00Z`)
       .lt("measured_at", `${datePrefix}T23:59:59Z`);
   }

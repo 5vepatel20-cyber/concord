@@ -74,8 +74,9 @@ export const POST = async (req: Request): Promise<Response> => {
     }
 
     const raw: { studies?: unknown[] } = await response.json();
-    const studies: TrialStudy[] = (raw.studies ?? []).map((s: Record<string, unknown>) => {
-      const proto = (s["protocolSection"] as Record<string, unknown>) ?? {};
+    const studies: TrialStudy[] = (raw.studies ?? []).map((s: unknown) => {
+      const study = s as Record<string, unknown>;
+      const proto = (study["protocolSection"] as Record<string, unknown>) ?? {};
       const id = (proto["identificationModule"] as Record<string, unknown>) ?? {};
       const status = (proto["statusModule"] as Record<string, unknown>) ?? {};
       const design = (proto["designModule"] as Record<string, unknown>) ?? {};
@@ -93,7 +94,7 @@ export const POST = async (req: Request): Promise<Response> => {
         phase: (design["phases"] as string[])?.[0] ?? "NA",
         conditions: (conditions["conditions"] as string[]) ?? [],
         interventions: (arms["interventionNames"] as string[]) ?? [],
-        location: locations.length > 0
+        location: locations.length > 0 && locations[0]
           ? `${(locations[0]["city"] as string) ?? "?"}, ${(locations[0]["country"] as string) ?? "?"}`
           : null,
         briefSummary: ((desc["briefSummary"] as string) ?? "").slice(0, 500),

@@ -112,7 +112,7 @@ export const POST = async (req: Request): Promise<Response> => {
       storage_url: body.storage_url ?? `manual://${user.id}/${Date.now()}`,
       ocr_text: body.ocr_text,
       ai_plain_summary: extraction.summary,
-      extracted_values: extraction as Record<string, unknown>,
+      extracted_values: extraction as unknown as Record<string, unknown>,
     })
     .select("id, ai_plain_summary, extracted_values")
     .single();

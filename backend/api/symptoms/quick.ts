@@ -10,6 +10,7 @@ import { serviceClient } from "../../_lib/supabase.js";
 import { initSentry, Sentry } from "../../_lib/sentry.js";
 import { corsed, preflight, corsedJsonError } from "../../_lib/cors.js";
 import { evaluateRules } from "../../_lib/alerts/rules.js";
+import type { Grade } from "../../_lib/pro-ctcae/scorer.js";
 import { detectWorsening } from "../../_lib/pro-ctcae/worsening.js";
 
 export const config = { runtime: "nodejs" };
@@ -118,22 +119,49 @@ export const POST = async (req: Request): Promise<Response> => {
     return corsedJsonError(req, 500, "response_insert_failed", resErr.message);
   }
 
+  // Build graded responses for rule evaluation.
+  const graded = body.responses.map((r) => {
+    const termId = termIdByCode.get(r.pro_ctcae_code);
+    return {
+      term_id: termId ?? r.pro_ctcae_code,
+      pro_ctcae_code: r.pro_ctcae_code,
+      composite_grade: r.grade as Grade,
+      body_location: null,
+    };
+  });
+
   // Evaluate alert rules (best-effort).
-  let emergencyGuidance: string | null = null;
+  let alertsCreated = 0;
   try {
-    const result = await evaluateRules({ patientId: user.id, responses });
-    if (result.emergency) {
-      emergencyGuidance = `${result.emergency.title}\n\n${result.emergency.body}`;
-      if (result.emergency.callout) emergencyGuidance += `\n\n${result.emergency.callout}`;
+    const generatedAlerts = await evaluateRules(user.id, report.id, graded);
+    if (generatedAlerts.length > 0) {
+      const alertRows = generatedAlerts.map((a) => ({
+        patient_id: a.patient_id,
+        report_id: report.id,
+        rule_id: a.rule_id,
+        severity_level: a.severity_level,
+      }));
+      const { error: alertErr } = await supabase.from("symptom_alert").insert(alertRows);
+      if (!alertErr) alertsCreated = alertRows.length;
     }
   } catch {
     // Best-effort.
   }
 
+  // Emergency guidance for grade 3 symptoms.
+  const severeTerms = graded.filter((g) => g.composite_grade === 3);
+  const emergencyGuidance = severeTerms.length > 0
+    ? {
+        title: "This sounds like it may need urgent attention",
+        body: `You reported severe ${severeTerms.map((g) => g.pro_ctcae_code).join(", ")}. Please contact your oncology care team now.`,
+        callout: "Concord is not a medical device. This guidance is informational, not a diagnosis.",
+      }
+    : null;
+
   // Detect worsening (best-effort).
   let worsening: unknown[] = [];
   try {
-    worsening = await detectWorsening({ patientId: user.id, responses });
+    worsening = await detectWorsening(user.id);
   } catch {
     // Best-effort.
   }
@@ -144,7 +172,7 @@ export const POST = async (req: Request): Promise<Response> => {
       JSON.stringify({
         ok: true,
         report_id: report.id,
-        emergency_guidance: emergencyGuidance ? { title: "Quick alert", body: emergencyGuidance, callout: null } : null,
+        emergency_guidance: emergencyGuidance,
         worsening,
       }),
       { status: 201, headers: { "content-type": "application/json" } },
