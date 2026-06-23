@@ -25,7 +25,9 @@ import 'features/atlas/chat_screen.dart';
 import 'features/atlas/visit_prep_screen.dart';
 import 'features/auth/auth_controller.dart';
 import 'features/auth/forgot_password_screen.dart';
+import 'features/caregiver/caregiver_dashboard_screen.dart';
 import 'features/caregiver/caregiver_management_screen.dart';
+import 'features/caregiver/caregiver_patient_log_screen.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/auth/sign_up_screen.dart';
 import 'features/documents/document_decode_screen.dart';
@@ -197,6 +199,25 @@ GoRouter _buildRouter(WidgetRef ref) {
       GoRoute(
         path: '/caregiver/manage',
         builder: (_, _) => const CaregiverManagementScreen(),
+      ),
+
+      // Caregiver dashboard (SYM-08). Full-screen push from Profile.
+      GoRoute(
+        path: '/caregiver/dashboard',
+        builder: (_, _) => const CaregiverDashboardScreen(),
+      ),
+
+      // Caregiver proxy symptom log (SYM-08). Full-screen push from dashboard.
+      GoRoute(
+        path: '/caregiver/log/:patientId',
+        builder: (_, state) {
+          final patientId = state.pathParameters['patientId']!;
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return CaregiverPatientLogScreen(
+            patientId: patientId,
+            patientName: extra['name'] as String? ?? 'Patient',
+          );
+        },
       ),
 
       // Authenticated shell — 5 branches.

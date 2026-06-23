@@ -113,7 +113,7 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
 
-            // Care team management (CARE-01).
+            // Care team management (CARE-01) + caregiver dashboard (SYM-08).
             const SizedBox(height: Space.s5),
             _SectionHeader('Care team'),
             _SettingsCard(
@@ -126,6 +126,16 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push('/caregiver/manage'),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.support_agent_outlined),
+                  title: const Text('Caregiver dashboard'),
+                  subtitle: const Text(
+                    'Log symptoms for someone you care for.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/caregiver/dashboard'),
                 ),
               ],
             ),

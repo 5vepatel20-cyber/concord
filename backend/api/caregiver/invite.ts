@@ -88,7 +88,7 @@ export const POST = async (req: Request): Promise<Response> => {
     // Revoked or pending — reactivate.
     const { error: updateErr } = await supabase
       .from("care_relationship")
-      .update({ status: "active", permissions: body.permissions ?? {} })
+      .update({ status: "active", permissions: body.permissions ?? { can_view_reports: true, receives_alerts: true, can_log: true } })
       .eq("id", existing.id);
 
     if (updateErr) {
@@ -127,7 +127,7 @@ export const POST = async (req: Request): Promise<Response> => {
       patient_id: user.id,
       member_user_id: caregiverUser.id,
       relationship: body.relationship,
-      permissions: body.permissions ?? { can_view_reports: true, receives_alerts: true },
+      permissions: body.permissions ?? { can_view_reports: true, receives_alerts: true, can_log: true },
       status: "active",
     })
     .select("id")

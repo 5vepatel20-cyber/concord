@@ -1,16 +1,11 @@
-// POST /api/symptoms/submit — auth-required. Accepts a symptom report with
-// one or more structured responses, grades them via the PRO-CTCAE scorer,
-// and persists to Postgres. This is the SYM-04 + SYM-09 wired endpoint.
+// POST /api/symptoms/caregiver-submit — auth-required. Allows a verified
+// caregiver to log symptoms on behalf of a patient (SYM-08).
 //
-// Idempotency:
-//   Clients SHOULD send an `Idempotency-Key` header (UUID). When present,
-//   the server caches the response for 24h keyed by (user_id, key) and
-//   replays it on retry instead of creating a second report. This makes
-//   the offline-queue retry path safe: a network blip right after the
-//   server writes but before the client receives 201 will not double-log.
+// The caller must have an active care_relationship with the target patient
+// that includes the `proxy_logging` permission.
 //
-// SYM-08: Caregiver proxy logging uses POST /api/symptoms/caregiver-submit
-// which also delegates to the same shared helper.
+// Delegates scoring, alert evaluation, and worsening detection to the
+// shared createSymptomReport() helper.
 
 import { z } from "zod";
 import { requireUser } from "../../_lib/auth.js";
@@ -19,27 +14,24 @@ import { initSentry, Sentry } from "../../_lib/sentry.js";
 import { corsed, preflight, corsedJsonError } from "../../_lib/cors.js";
 import { createSymptomReport, AppError, ResponseSchema } from "../../_lib/symptoms/submit-report.js";
 
-export const config = {
-  runtime: "nodejs",
-};
-
+export const config = { runtime: "nodejs" };
 export const OPTIONS = (req: Request): Response => preflight(req);
 
+const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9_\-:.]{8,128}$/;
+
 const Body = z.object({
+  patient_id: z.string().uuid(),
   recall_window: z.enum(["now", "past_7_days"]).default("now"),
-  source: z.enum(["self", "caregiver", "voice"]).default("self"),
   free_text: z.string().max(4000).nullable().optional(),
   responses: z.array(ResponseSchema).min(1).max(20),
 });
-
-const IDEMPOTENCY_KEY_RE = /^[A-Za-z0-9_\-:.]{8,128}$/;
 
 export const POST = async (req: Request): Promise<Response> => {
   initSentry();
 
   const userOrError = await requireUser(req);
   if (userOrError instanceof Response) return corsed(req, userOrError);
-  const user = userOrError;
+  const caregiver = userOrError;
 
   const idempotencyKeyRaw = req.headers.get("idempotency-key");
   const idempotencyKey =
@@ -61,7 +53,7 @@ export const POST = async (req: Request): Promise<Response> => {
     const { data: cached, error: cacheErr } = await supabase
       .from("idempotency_keys")
       .select("status_code, response_body")
-      .eq("user_id", user.id)
+      .eq("user_id", caregiver.id)
       .eq("key", idempotencyKey)
       .maybeSingle();
     if (cacheErr) {
@@ -77,13 +69,37 @@ export const POST = async (req: Request): Promise<Response> => {
     }
   }
 
+  // Verify caregiver relationship: caller must be an active caregiver for
+  // the specified patient with proxy_logging permission.
+  const { data: rel, error: relErr } = await supabase
+    .from("care_relationship")
+    .select("id, permissions")
+    .eq("patient_id", body.patient_id)
+    .eq("member_user_id", caregiver.id)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (relErr) {
+    Sentry.captureException(relErr);
+    return corsedJsonError(req, 500, "lookup_failed", relErr.message);
+  }
+  if (!rel) {
+    return corsedJsonError(req, 403, "not_caregiver", "You are not an active caregiver for this patient");
+  }
+
+  const permissions = (rel.permissions as Record<string, boolean>) ?? {};
+  if (!permissions["can_log"]) {
+    return corsedJsonError(req, 403, "permission_denied", "Your care relationship does not include symptom logging permission");
+  }
+
+  // Proceed with report creation on behalf of the patient.
   let result;
   try {
     result = await createSymptomReport({
       supabase,
-      patientId: user.id,
+      patientId: body.patient_id,
       recallWindow: body.recall_window,
-      source: body.source,
+      source: "caregiver",
       freeText: body.free_text ?? null,
       responses: body.responses,
     });
@@ -103,14 +119,14 @@ export const POST = async (req: Request): Promise<Response> => {
     alerts_created: result.alertsCreated,
     worsening: result.worsening,
     emergency_guidance: result.emergencyGuidance,
+    logged_by: caregiver.id,
   };
 
-  // Cache idempotency key.
   if (idempotencyKey) {
     const { error: cacheWriteErr } = await supabase
       .from("idempotency_keys")
       .insert({
-        user_id: user.id,
+        user_id: caregiver.id,
         key: idempotencyKey,
         status_code: 201,
         response_body: responseBody,
