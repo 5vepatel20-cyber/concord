@@ -46,6 +46,7 @@ import 'features/tab_shell.dart';
 import 'features/trials/trial_search_screen.dart';
 import 'features/vitals/health_metrics_screen.dart';
 import 'features/vitals/manual_entry_screen.dart';
+import 'features/treatment/treatment_calendar_screen.dart';
 import 'theme/theme_data.dart';
 
 class ConcordApp extends ConsumerStatefulWidget {
@@ -225,6 +226,12 @@ GoRouter _buildRouter(WidgetRef ref) {
             patientName: extra['name'] as String? ?? 'Patient',
           );
         },
+      ),
+
+      // Treatment calendar (ONB-05). Full-screen push from Profile.
+      GoRoute(
+        path: '/treatment/calendar',
+        builder: (_, _) => const TreatmentCalendarScreen(),
       ),
 
       // Authenticated shell — 5 branches.

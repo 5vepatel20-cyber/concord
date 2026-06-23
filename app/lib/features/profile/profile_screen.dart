@@ -123,6 +123,23 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
 
+            // Treatment calendar (ONB-05).
+            const SizedBox(height: Space.s5),
+            _SectionHeader('Treatment'),
+            _SettingsCard(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.calendar_month_outlined),
+                  title: const Text('Treatment calendar'),
+                  subtitle: const Text(
+                    'Track infusion, appointment, lab, and scan dates.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/treatment/calendar'),
+                ),
+              ],
+            ),
+
             // Care team management (CARE-01) + caregiver dashboard (SYM-08).
             const SizedBox(height: Space.s5),
             _SectionHeader('Care team'),
