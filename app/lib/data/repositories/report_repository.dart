@@ -57,6 +57,7 @@ class ResponseDetail {
 // ── One-pager models (RPT-03) ────────────────────────────────────────
 
 class OnePagerReport {
+  final String reportId;
   final String generatedAt;
   final int periodDays;
   final List<HeatmapRow> heatmapRows;
@@ -67,6 +68,7 @@ class OnePagerReport {
   final String? narrative;
 
   OnePagerReport({
+    required this.reportId,
     required this.generatedAt,
     required this.periodDays,
     required this.heatmapRows,
@@ -432,7 +434,51 @@ class ReportRepository {
     }
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
-    return OnePagerReport.fromJson(body['report'] as Map<String, dynamic>);
+    final reportId = body['report_id'] as String? ?? '';
+    final report = OnePagerReport.fromJson(
+      body['report'] as Map<String, dynamic>,
+    );
+    return OnePagerReport(
+      reportId: reportId,
+      generatedAt: report.generatedAt,
+      periodDays: report.periodDays,
+      heatmapRows: report.heatmapRows,
+      worstEpisodes: report.worstEpisodes,
+      newOrWorsening: report.newOrWorsening,
+      medicationAdherence: report.medicationAdherence,
+      vitals: report.vitals,
+      narrative: report.narrative,
+    );
+  }
+
+  Future<String> shareReport(String reportId, {int expiresInDays = 7}) async {
+    final apiBase = _ref.read(apiBaseUrlProvider);
+    final session = _ref.read(supabaseClientProvider).auth.currentSession;
+    if (session == null) throw StateError('Not authenticated');
+
+    final response = await http
+        .post(
+          Uri.parse('$apiBase/api/reports/share'),
+          headers: {
+            'Authorization': 'Bearer ${session.accessToken}',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'report_id': reportId,
+            'expires_in_days': expiresInDays,
+          }),
+        )
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode != 201) {
+      final err = jsonDecode(response.body) as Map<String, dynamic>;
+      throw Exception(
+        (err['error'] as Map<String, dynamic>?)?['message'] ?? 'Share failed',
+      );
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return data['share_url'] as String;
   }
 }
 

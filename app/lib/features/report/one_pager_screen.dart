@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -17,13 +18,50 @@ class OnePagerScreen extends ConsumerStatefulWidget {
 
 class _OnePagerScreenState extends ConsumerState<OnePagerScreen> {
   Future<OnePagerReport>? _future;
+  OnePagerReport? _report;
+  bool _sharing = false;
 
   @override
   void initState() {
     super.initState();
+    _load();
+  }
+
+  void _load() {
+    _report = null;
     _future = ref
         .read(reportRepositoryProvider)
         .generateOnePager(days: widget.days);
+  }
+
+  Future<void> _shareReport() async {
+    final report = _report;
+    if (report == null || report.reportId.isEmpty) return;
+    setState(() => _sharing = true);
+    try {
+      final url = await ref
+          .read(reportRepositoryProvider)
+          .shareReport(report.reportId);
+      if (!mounted) return;
+      await Clipboard.setData(ClipboardData(text: url));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Share link copied to clipboard'),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Share failed: $e'),
+          backgroundColor: SeverityColors.severe,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
   }
 
   @override
@@ -32,16 +70,22 @@ class _OnePagerScreenState extends ConsumerState<OnePagerScreen> {
       appBar: AppBar(
         title: const Text('Symptom Summary'),
         actions: [
+          if (_report != null && _report!.reportId.isNotEmpty)
+            IconButton(
+              icon: _sharing
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.share),
+              tooltip: 'Share',
+              onPressed: _sharing ? null : _shareReport,
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Regenerate',
-            onPressed: () {
-              setState(() {
-                _future = ref
-                    .read(reportRepositoryProvider)
-                    .generateOnePager(days: widget.days);
-              });
-            },
+            onPressed: () => setState(_load),
           ),
         ],
       ),
@@ -97,6 +141,7 @@ class _OnePagerScreenState extends ConsumerState<OnePagerScreen> {
             if (report == null) {
               return const Center(child: Text('No data'));
             }
+            _report = report;
             return _Body(report: report);
           },
         ),
