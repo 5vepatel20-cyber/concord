@@ -1,17 +1,23 @@
-// Add-medication screen (MED-02, MED-03).
+// Add-medication screen (MED-01, MED-02, MED-03).
 //
-// Simple structured form. For 1.1 we keep this manual (no RxNorm
-// autocomplete — that's a follow-up that needs an external API). The
-// fields map 1:1 to the medication.schedule JSONB on the backend.
+// Features RxNorm-powered autocomplete on the medication name field
+// (MED-01). The backend proxies the NIH RxNav API so the client never
+// talks to an external domain. Free-text is still allowed if the user
+// doesn't pick from the suggestions.
+
+import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 
 import '../../core/notifications/medication_reminder_service.dart';
 import '../../core/result/result.dart';
 import '../../data/models/medication.dart';
 import '../../data/repositories/medication_repository.dart';
+import '../../data/supabase/supabase_provider.dart';
 import '../../theme/tokens.dart';
 import 'medications_screen.dart';
 
@@ -29,6 +35,7 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
   final _dose = TextEditingController();
   final _unit = TextEditingController();
   final _notes = TextEditingController();
+  final _nameFocus = FocusNode();
 
   MedRoute _route = MedRoute.oral;
   MedFrequency _frequency = MedFrequency.daily;
@@ -37,13 +44,88 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
   bool _busy = false;
   String? _error;
 
+  // RxNorm autocomplete state.
+  String? _rxcui;
+  List<RxNormSuggestion> _suggestions = [];
+  bool _searching = false;
+  Timer? _debounce;
+  final _layerLink = LayerLink();
+
+  @override
+  void initState() {
+    super.initState();
+    _name.addListener(_onNameChanged);
+  }
+
   @override
   void dispose() {
+    _debounce?.cancel();
+    _name.removeListener(_onNameChanged);
     _name.dispose();
+    _nameFocus.dispose();
     _dose.dispose();
     _unit.dispose();
     _notes.dispose();
     super.dispose();
+  }
+
+  void _onNameChanged() {
+    _debounce?.cancel();
+    // Clear the selected rxcui any time the user edits the text manually.
+    _rxcui = null;
+    final query = _name.text.trim();
+    if (query.length < 2) {
+      setState(() => _suggestions = []);
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 300), () => _search(query));
+  }
+
+  Future<void> _search(String query) async {
+    setState(() => _searching = true);
+    try {
+      final apiBase = ref.read(apiBaseUrlProvider);
+      final session = ref.read(supabaseClientProvider).auth.currentSession;
+      if (session == null) return;
+
+      final response = await http
+          .post(
+            Uri.parse('$apiBase/api/medications/rxnorm/search'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${session.accessToken}',
+            },
+            body: jsonEncode({'query': query, 'maxResults': 10}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        final raw = (body['results'] as List<dynamic>?) ?? [];
+        setState(() {
+          _suggestions = raw
+              .map((s) => RxNormSuggestion.fromJson(s as Map<String, dynamic>))
+              .toList();
+        });
+      } else {
+        setState(() => _suggestions = []);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _suggestions = []);
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  void _selectSuggestion(RxNormSuggestion s) {
+    _name.text = s.name;
+    _name.selection = TextSelection.fromPosition(
+      TextPosition(offset: s.name.length),
+    );
+    _rxcui = s.rxcui;
+    setState(() => _suggestions = []);
+    _nameFocus.unfocus();
   }
 
   Future<void> _submit() async {
@@ -74,22 +156,17 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
       unit: _unit.text.trim().isEmpty ? null : _unit.text.trim(),
       route: _route,
       schedule: schedule,
+      rxnormCode: _rxcui,
     );
     final res = await ref.read(medicationRepositoryProvider).create(draft);
     if (!mounted) return;
     switch (res) {
       case Ok():
-        // Schedule a reminder for the new med right away. We pass the
-        // draft (id == null when offline) — the service will use
-        // whatever id we have and resyncAll on next boot will reconcile.
-        // ignore: discarded_futures
         () async {
           final reminder = ref.read(medicationReminderServiceProvider);
           await reminder.ensurePermission();
           await reminder.scheduleFor(draft);
         }();
-        // Refresh the list so the new med shows up immediately.
-        // ignore: discarded_futures
         ref.read(medicationsListProvider.notifier).refresh();
         context.pop();
       case Err(:final error):
@@ -139,20 +216,133 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
           key: _formKey,
           child: ListView(
             padding: const EdgeInsets.fromLTRB(
-              Space.s5, Space.s3, Space.s5, Space.s6,
+              Space.s5,
+              Space.s3,
+              Space.s5,
+              Space.s6,
             ),
             children: [
-              TextFormField(
-                controller: _name,
-                decoration: const InputDecoration(
-                  labelText: 'Name',
-                  hintText: 'e.g. Tamoxifen',
+              CompositedTransformTarget(
+                link: _layerLink,
+                child: TextFormField(
+                  controller: _name,
+                  focusNode: _nameFocus,
+                  decoration: InputDecoration(
+                    labelText: 'Name',
+                    hintText: 'e.g. Tamoxifen',
+                    suffixIcon: _searching
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: Center(
+                              child: SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          )
+                        : (_rxcui != null
+                              ? const Icon(
+                                  Icons.check_circle,
+                                  color: SeverityColors.none,
+                                  size: 20,
+                                )
+                              : null),
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  onTap: () {
+                    // Re-show suggestions if the user taps back in.
+                    final q = _name.text.trim();
+                    if (q.length >= 2) _search(q);
+                  },
                 ),
-                textCapitalization: TextCapitalization.words,
-                validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Required'
-                    : null,
               ),
+              if (_suggestions.isNotEmpty)
+                CompositedTransformFollower(
+                  link: _layerLink,
+                  targetAnchor: Alignment.bottomLeft,
+                  followerAnchor: Alignment.topLeft,
+                  offset: const Offset(0, 4),
+                  child: Material(
+                    elevation: 4,
+                    borderRadius: BorderRadius.circular(Radii.md),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 240),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        padding: EdgeInsets.zero,
+                        itemCount: _suggestions.length,
+                        separatorBuilder: (_, _) =>
+                            Divider(height: 1, color: Neutrals.hairline),
+                        itemBuilder: (ctx, i) {
+                          final s = _suggestions[i];
+                          return InkWell(
+                            onTap: () => _selectSuggestion(s),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: Space.s4,
+                                vertical: Space.s3,
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          s.name,
+                                          style: t.textTheme.bodyMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                        ),
+                                        if (s.synonym != null &&
+                                            s.synonym != s.name)
+                                          Text(
+                                            s.synonym!,
+                                            style: t.textTheme.bodySmall
+                                                ?.copyWith(
+                                                  color: Neutrals.slate,
+                                                ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (s.tty != null)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: Space.s1,
+                                        vertical: 1,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: BrandColors.concordBlueTint,
+                                        borderRadius: BorderRadius.circular(
+                                          Radii.xs,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        s.tty!,
+                                        style: t.textTheme.labelSmall?.copyWith(
+                                          color: BrandColors.concordBlue,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
               const SizedBox(height: Space.s4),
               Row(
                 children: [
@@ -216,8 +406,7 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
                   ),
                 ],
                 selected: {_frequency},
-                onSelectionChanged: (s) =>
-                    setState(() => _frequency = s.first),
+                onSelectionChanged: (s) => setState(() => _frequency = s.first),
               ),
               if (_frequency == MedFrequency.daily) ...[
                 const SizedBox(height: Space.s4),
@@ -237,8 +426,7 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
                       label: Text(
                         _times.isEmpty ? 'Add a time' : 'Add another',
                       ),
-                      onPressed:
-                          _times.isEmpty ? _pickTime : _addAnotherTime,
+                      onPressed: _times.isEmpty ? _pickTime : _addAnotherTime,
                     ),
                   ],
                 ),
@@ -275,16 +463,14 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
                       for (final t in _times)
                         InputChip(
                           label: Text(_formatTime(t)),
-                          onDeleted: () =>
-                              setState(() => _times.remove(t)),
+                          onDeleted: () => setState(() => _times.remove(t)),
                         ),
                       ActionChip(
                         avatar: const Icon(Icons.add, size: 18),
                         label: Text(
                           _times.isEmpty ? 'Add a time' : 'Add another',
                         ),
-                        onPressed:
-                            _times.isEmpty ? _pickTime : _addAnotherTime,
+                        onPressed: _times.isEmpty ? _pickTime : _addAnotherTime,
                       ),
                     ],
                   ),
@@ -304,8 +490,9 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
                 const SizedBox(height: Space.s2),
                 Text(
                   _error!,
-                  style: t.textTheme.bodySmall
-                      ?.copyWith(color: SeverityColors.severe),
+                  style: t.textTheme.bodySmall?.copyWith(
+                    color: SeverityColors.severe,
+                  ),
                 ),
               ],
               const SizedBox(height: Space.s5),
@@ -325,4 +512,25 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
       ),
     );
   }
+}
+
+class RxNormSuggestion {
+  final String rxcui;
+  final String name;
+  final String? synonym;
+  final String? tty;
+
+  RxNormSuggestion({
+    required this.rxcui,
+    required this.name,
+    this.synonym,
+    this.tty,
+  });
+
+  factory RxNormSuggestion.fromJson(Map<String, dynamic> j) => RxNormSuggestion(
+    rxcui: j['rxcui'] as String? ?? '',
+    name: j['name'] as String? ?? '',
+    synonym: j['synonym'] as String?,
+    tty: j['tty'] as String?,
+  );
 }
