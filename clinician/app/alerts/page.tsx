@@ -49,9 +49,29 @@ async function acknowledgeAlert(alertId: string) {
   "use server";
 
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
   await supabase
     .from("symptom_alert")
-    .update({ status: "acknowledged" })
+    .update({ status: "acknowledged", acknowledged_by: user.id })
+    .eq("id", alertId);
+}
+
+async function resolveAlert(alertId: string) {
+  "use server";
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  await supabase
+    .from("symptom_alert")
+    .update({
+      status: "resolved",
+      acknowledged_by: user.id,
+      resolved_at: new Date().toISOString(),
+    })
     .eq("id", alertId);
 }
 
@@ -156,6 +176,26 @@ export default async function AlertsPage() {
                               }}
                             >
                               Acknowledge
+                            </button>
+                          </form>
+                        )}
+                        {(a.status === "open" || a.status === "acknowledged") && (
+                          <form action={resolveAlert.bind(null, a.id)}>
+                            <button
+                              type="submit"
+                              style={{
+                                padding: "6px 14px",
+                                fontSize: 13,
+                                fontWeight: 500,
+                                background: "var(--stable)",
+                                color: "var(--surface)",
+                                border: "none",
+                                borderRadius: 8,
+                                cursor: "pointer",
+                                marginLeft: a.status === "open" ? 6 : 0,
+                              }}
+                            >
+                              Resolve
                             </button>
                           </form>
                         )}

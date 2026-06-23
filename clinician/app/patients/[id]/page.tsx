@@ -34,6 +34,13 @@ async function fetchPatient(id: string): Promise<PatientDetail | null> {
     .eq("patient_id", id)
     .eq("active", true);
 
+  const { data: openAlerts } = await supabase
+    .from("symptom_alert")
+    .select("id, severity_level, created_at, status")
+    .eq("patient_id", id)
+    .eq("status", "open")
+    .order("created_at", { ascending: false });
+
   return {
     id: profile.user_id,
     full_name: (profile as any).user?.full_name ?? "Unknown",
@@ -43,7 +50,8 @@ async function fetchPatient(id: string): Promise<PatientDetail | null> {
     diagnosis_date: profile.diagnosis_date,
     cancer_stage: profile.cancer_stage,
     sex_at_birth: (profile as any).user?.sex_at_birth,
-    open_alerts: 0,
+    open_alerts: openAlerts?.length ?? 0,
+    open_alert_list: openAlerts ?? [],
     last_report_at: reports?.[0]?.reported_at ?? null,
     latest_grade: null,
     recent_reports: (reports ?? []).flatMap((r: any) =>

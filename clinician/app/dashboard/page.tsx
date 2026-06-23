@@ -31,16 +31,58 @@ async function fetchPatients(): Promise<PatientSummary[]> {
 
   if (!patients) return [];
 
-  return patients.map((p: any) => ({
-    id: p.user_id,
-    full_name: p.user?.full_name ?? "Unknown",
-    date_of_birth: p.user?.date_of_birth ?? "",
-    primary_diagnosis: p.condition?.display_name ?? "Unknown",
-    treatment_status: p.treatment_status ?? "unknown",
-    open_alerts: 0,
-    last_report_at: null,
-    latest_grade: null,
-  }));
+  const patientIds = patients.map((p: any) => p.user_id);
+
+  // Batch query for open alert counts per patient.
+  const { data: alertCounts } = await supabase
+    .from("symptom_alert")
+    .select("patient_id, severity_level")
+    .in("patient_id", patientIds)
+    .eq("status", "open");
+
+  const alertCountMap = new Map<string, number>();
+  for (const a of alertCounts ?? []) {
+    alertCountMap.set(a.patient_id, (alertCountMap.get(a.patient_id) ?? 0) + 1);
+  }
+
+  // Batch query for most recent report date + grade per patient.
+  const { data: latestReports } = await supabase
+    .from("symptom_report")
+    .select(`
+      patient_id,
+      reported_at,
+      symptom_response(composite_grade)
+    `)
+    .in("patient_id", patientIds)
+    .order("reported_at", { ascending: false })
+    .limit(1);
+
+  const latestReportMap = new Map<string, { reported_at: string; top_grade: number }>();
+  for (const r of latestReports ?? []) {
+    const grades = (r.symptom_response as any[] | undefined) ?? [];
+    const topGrade = grades.length > 0
+      ? Math.max(...grades.map((g: any) => g.composite_grade ?? 0))
+      : 0;
+    latestReportMap.set(r.patient_id, {
+      reported_at: r.reported_at,
+      top_grade: topGrade,
+    });
+  }
+
+  return patients.map((p: any) => {
+    const alerts = alertCountMap.get(p.user_id) ?? 0;
+    const latest = latestReportMap.get(p.user_id);
+    return {
+      id: p.user_id,
+      full_name: p.user?.full_name ?? "Unknown",
+      date_of_birth: p.user?.date_of_birth ?? "",
+      primary_diagnosis: p.condition?.display_name ?? "Unknown",
+      treatment_status: p.treatment_status ?? "unknown",
+      open_alerts: alerts,
+      last_report_at: latest?.reported_at ?? null,
+      latest_grade: latest?.top_grade ?? null,
+    };
+  });
 }
 
 export default async function DashboardPage() {
