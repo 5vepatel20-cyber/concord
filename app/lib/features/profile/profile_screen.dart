@@ -79,7 +79,7 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
 
-            // Manual vitals entry (HK-03).
+            // Manual vitals entry (HK-03) + health metrics history (HK-04).
             const SizedBox(height: Space.s5),
             _SectionHeader('Vitals'),
             _SettingsCard(
@@ -92,6 +92,16 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push('/vitals/manual'),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.trending_up_outlined),
+                  title: const Text('Health trends'),
+                  subtitle: const Text(
+                    'View charts and history for your tracked health metrics.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/health/metrics'),
                 ),
               ],
             ),

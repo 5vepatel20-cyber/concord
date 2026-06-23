@@ -44,6 +44,7 @@ import 'features/report/report_detail_screen.dart';
 import 'features/symptoms/symptom_history_screen.dart';
 import 'features/tab_shell.dart';
 import 'features/trials/trial_search_screen.dart';
+import 'features/vitals/health_metrics_screen.dart';
 import 'features/vitals/manual_entry_screen.dart';
 import 'theme/theme_data.dart';
 
@@ -181,6 +182,12 @@ GoRouter _buildRouter(WidgetRef ref) {
       GoRoute(
         path: '/vitals/manual',
         builder: (_, _) => const ManualEntryScreen(),
+      ),
+
+      // Health metrics history (HK-04). Full-screen push from Profile.
+      GoRoute(
+        path: '/health/metrics',
+        builder: (_, _) => const HealthMetricsScreen(),
       ),
 
       // Visit prep (RPT-05). Full-screen push from Atlas tab.
