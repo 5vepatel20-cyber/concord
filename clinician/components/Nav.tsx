@@ -6,6 +6,7 @@ import { createClient } from "../lib/supabase/client";
 
 const links = [
   { href: "/dashboard", label: "Patient Roster" },
+  { href: "/messages", label: "Messages" },
   { href: "/alerts", label: "Alert Inbox" },
   { href: "/billing", label: "RTM Billing" },
   { href: "/compliance", label: "EOM Compliance" },
