@@ -87,13 +87,52 @@ async function fetchPatients(): Promise<PatientSummary[]> {
 }
 
 export default async function DashboardPage() {
+  const supabase = await createClient();
   const patients = await fetchPatients();
+
+  const { count: totalAlerts } = await supabase
+    .from("symptom_alert")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "open");
+
+  const { data: { user } } = await supabase.auth.getUser();
+  let unreadMessages = 0;
+  if (user) {
+    const { data: participations } = await supabase
+      .from("conversation_participant")
+      .select("conversation_id, last_read_at")
+      .eq("user_id", user.id);
+
+    if (participations && participations.length > 0) {
+      const convIds = participations.map((p: any) => p.conversation_id);
+      const { data: lastMessages } = await supabase
+        .from("message")
+        .select("conversation_id, created_at, sender_id")
+        .in("conversation_id", convIds);
+
+      if (lastMessages) {
+        const myReadMap = new Map(participations.map((p: any) => [p.conversation_id, p.last_read_at]));
+        const lastMsgMap = new Map<string, any>();
+        for (const msg of lastMessages) {
+          if (!lastMsgMap.has(msg.conversation_id)) {
+            lastMsgMap.set(msg.conversation_id, msg);
+          }
+        }
+        for (const [cid, lastMsg] of lastMsgMap) {
+          const myReadAt = myReadMap.get(cid);
+          if (lastMsg.sender_id !== user.id && (myReadAt == null || new Date(lastMsg.created_at) > new Date(myReadAt))) {
+            unreadMessages++;
+          }
+        }
+      }
+    }
+  }
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
       <Nav />
       <main style={{ flex: 1, padding: "24px 32px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>
             Patient Roster
           </h1>
@@ -109,6 +148,29 @@ export default async function DashboardPage() {
           }}>
             Export CSV
           </a>
+        </div>
+
+        <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
+          {[
+            { label: "Total Patients", value: patients.length, color: "var(--concord-blue)" },
+            { label: "Open Alerts", value: totalAlerts ?? 0, color: totalAlerts && totalAlerts > 0 ? "var(--severe)" : "var(--stable)" },
+            { label: "Unread Messages", value: unreadMessages, color: unreadMessages > 0 ? "var(--warn)" : "var(--hint)" },
+          ].map((s) => (
+            <div key={s.label} style={{
+              flex: 1,
+              background: "var(--surface)",
+              borderRadius: 12,
+              border: "1px solid var(--hairline)",
+              padding: "14px 16px",
+            }}>
+              <div style={{ fontSize: 13, color: "var(--slate)", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 2 }}>
+                {s.label}
+              </div>
+              <div style={{ fontSize: 28, fontWeight: 700, color: s.color }}>
+                {s.value}
+              </div>
+            </div>
+          ))}
         </div>
 
         <PatientRosterTable patients={patients} />
