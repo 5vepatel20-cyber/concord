@@ -10,6 +10,7 @@ const links = [
   { href: "/alerts", label: "Alert Inbox" },
   { href: "/billing", label: "RTM Billing" },
   { href: "/compliance", label: "EOM Compliance" },
+  { href: "/admin", label: "Settings" },
 ];
 
 export function Nav() {

@@ -93,9 +93,23 @@ export default async function DashboardPage() {
     <div style={{ display: "flex", minHeight: "100vh" }}>
       <Nav />
       <main style={{ flex: 1, padding: "24px 32px" }}>
-        <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 24 }}>
-          Patient Roster
-        </h1>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>
+            Patient Roster
+          </h1>
+          <a href="/api/export" style={{
+            padding: "8px 16px",
+            fontSize: 13,
+            fontWeight: 500,
+            background: "var(--surface)",
+            color: "var(--concord-blue)",
+            border: "1px solid var(--hairline)",
+            borderRadius: 8,
+            textDecoration: "none",
+          }}>
+            Export CSV
+          </a>
+        </div>
 
         <PatientRosterTable patients={patients} />
       </main>

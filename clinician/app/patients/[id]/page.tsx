@@ -157,6 +157,64 @@ async function fetchOpenAlerts(patientId: string): Promise<OpenAlertSummary[]> {
   return (data ?? []) as OpenAlertSummary[];
 }
 
+interface MedAdherence {
+  id: string;
+  display_name: string;
+  dose: string;
+  route: string;
+  adherence_pct: number;
+  total_doses: number;
+  taken: number;
+  skipped: number;
+  missed: number;
+}
+
+async function fetchMedicationAdherence(patientId: string): Promise<MedAdherence[]> {
+  const supabase = await createClient();
+
+  const { data: meds } = await supabase
+    .from("medication")
+    .select("id, display_name, dose, route")
+    .eq("patient_id", patientId)
+    .eq("active", true);
+
+  if (!meds || meds.length === 0) return [];
+
+  const medIds = meds.map((m: any) => m.id);
+
+  const { data: events } = await supabase
+    .from("medication_event")
+    .select("medication_id, status")
+    .in("medication_id", medIds);
+
+  const eventMap = new Map<string, { taken: number; skipped: number; missed: number; taken_late: number }>();
+  for (const e of (events as any[]) ?? []) {
+    const acc = eventMap.get(e.medication_id) ?? { taken: 0, skipped: 0, missed: 0, taken_late: 0 };
+    if (e.status === "taken") acc.taken++;
+    else if (e.status === "skipped") acc.skipped++;
+    else if (e.status === "missed") acc.missed++;
+    else if (e.status === "taken_late") acc.taken_late++;
+    eventMap.set(e.medication_id, acc);
+  }
+
+  return (meds as any[]).map((m) => {
+    const e = eventMap.get(m.id) ?? { taken: 0, skipped: 0, missed: 0, taken_late: 0 };
+    const total = e.taken + e.skipped + e.missed + e.taken_late;
+    const adherence_pct = total > 0 ? Math.round((e.taken / total) * 100) : 0;
+    return {
+      id: m.id,
+      display_name: m.display_name,
+      dose: m.dose ?? "",
+      route: m.route ?? "oral",
+      adherence_pct,
+      total_doses: total,
+      taken: e.taken,
+      skipped: e.skipped,
+      missed: e.missed,
+    };
+  });
+}
+
 interface ReportSummary {
   id: string;
   created_at: string;
@@ -209,6 +267,50 @@ async function fetchReports(patientId: string): Promise<ReportSummary[]> {
   });
 }
 
+interface DayCompliance {
+  date: string;
+  completed: boolean;
+  grade: number | null;
+}
+
+async function fetchCompliance(patientId: string): Promise<DayCompliance[]> {
+  const supabase = await createClient();
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+
+  const { data } = await supabase
+    .from("symptom_report")
+    .select("reported_at, symptom_response(composite_grade)")
+    .eq("patient_id", patientId)
+    .gte("reported_at", cutoff.toISOString())
+    .order("reported_at", { ascending: true });
+
+  const dayMap = new Map<string, number[]>();
+  for (const row of (data as any[]) ?? []) {
+    const day = row.reported_at.slice(0, 10);
+    const grades = (row.symptom_response ?? []).map((sr: any) => sr.composite_grade ?? 0);
+    const existing = dayMap.get(day) ?? [];
+    dayMap.set(day, [...existing, ...grades]);
+  }
+
+  const result: DayCompliance[] = [];
+  const now = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const grades = dayMap.get(key);
+    result.push({
+      date: key,
+      completed: grades != null && grades.length > 0,
+      grade: grades != null && grades.length > 0 ? Math.max(...grades) : null,
+    });
+  }
+
+  return result;
+}
+
 async function ensureConversation(patientId: string) {
   "use server";
 
@@ -256,6 +358,8 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
   const vitals = await fetchVitals(params.id);
   const openAlerts = await fetchOpenAlerts(params.id);
   const reports = await fetchReports(params.id);
+  const compliance = await fetchCompliance(params.id);
+  const medsWithAdherence = await fetchMedicationAdherence(params.id);
 
   const gradeColors: Record<string, string> = {
     "0": "var(--stable)",
@@ -331,6 +435,79 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
               Message Patient
             </button>
           </form>
+        </div>
+
+        <div style={{
+          background: "var(--surface)",
+          borderRadius: 14,
+          border: "1px solid var(--hairline)",
+          padding: "14px 16px",
+          marginBottom: 24,
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--slate)", textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 10 }}>
+            Check-in Compliance &middot; Last 30 Days
+          </div>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(7, 1fr)",
+            gap: 3,
+          }}>
+            {["S", "M", "T", "W", "T", "F", "S"].map((d) => (
+              <div key={d} style={{ fontSize: 10, fontWeight: 600, color: "var(--hint)", textAlign: "center", marginBottom: 4 }}>
+                {d}
+              </div>
+            ))}
+            {(() => {
+              const firstDay = new Date(compliance[0]?.date ?? new Date());
+              const startPad = firstDay.getDay();
+              const cells: React.ReactNode[] = [];
+              for (let i = 0; i < startPad; i++) {
+                cells.push(<div key={`pad-${i}`} />);
+              }
+              for (const day of compliance) {
+                const d = new Date(day.date);
+                const isToday = d.toDateString() === new Date().toDateString();
+                let bg = "var(--mist)";
+                let fg = "var(--hint)";
+                if (day.completed) {
+                  bg = "var(--stable)";
+                  fg = "var(--surface)";
+                } else if (d < new Date(new Date().toDateString())) {
+                  bg = "#FDEAEA";
+                  fg = "var(--severe)";
+                }
+                if (isToday) {
+                  bg = day.completed ? "var(--stable)" : "var(--concord-blue-tint)";
+                  fg = day.completed ? "var(--surface)" : "var(--concord-blue)";
+                }
+                cells.push(
+                  <div
+                    key={day.date}
+                    title={`${day.date}${day.completed ? ` (grade ${day.grade})` : " — no check-in"}`}
+                    style={{
+                      aspectRatio: "1",
+                      borderRadius: 6,
+                      background: bg,
+                      color: fg,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 11,
+                      fontWeight: d.getDay() === 0 || d.getDay() === 6 ? d > new Date(new Date().toDateString()) ? 400 : 700 : 500,
+                    }}
+                  >
+                    {d.getDate()}
+                  </div>
+                );
+              }
+              return cells;
+            })()}
+          </div>
+          <div style={{ display: "flex", gap: 16, marginTop: 8, fontSize: 12, color: "var(--hint)" }}>
+            <span>&bull; Completed ({compliance.filter((d) => d.completed).length})</span>
+            <span style={{ color: "var(--severe)" }}>&bull; Missed ({compliance.filter((d) => !d.completed && new Date(d.date) < new Date(new Date().toDateString())).length})</span>
+            <span>&bull; {Math.round((compliance.filter((d) => d.completed).length / Math.max(compliance.filter((d) => new Date(d.date) <= new Date(new Date().toDateString())).length, 1)) * 100)}% rate</span>
+          </div>
         </div>
 
         <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 12 }}>
@@ -415,7 +592,7 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
           border: "1px solid var(--hairline)",
           overflow: "hidden",
         }}>
-          {patient.medications.length === 0 ? (
+          {(medsWithAdherence.length > 0 ? medsWithAdherence : patient.medications).length === 0 ? (
             <p style={{ padding: 24, color: "var(--hint)", fontSize: 15 }}>
               No medications recorded.
             </p>
@@ -423,7 +600,7 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--hairline)", textAlign: "left" }}>
-                  {["Medication", "Dose", "Route"].map((h) => (
+                  {["Medication", "Dose", "Route", "Adherence"].map((h) => (
                     <th key={h} style={{
                       padding: "10px 16px",
                       fontSize: 13,
@@ -437,7 +614,7 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
                 </tr>
               </thead>
               <tbody>
-                {patient.medications.map((m) => (
+                {(medsWithAdherence.length > 0 ? medsWithAdherence : patient.medications).map((m: any) => (
                   <tr key={m.id} style={{ borderBottom: "1px solid var(--hairline)" }}>
                     <td style={{ padding: "10px 16px", fontSize: 14, fontWeight: 600, color: "var(--ink)" }}>
                       {m.display_name}
@@ -447,6 +624,28 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
                     </td>
                     <td style={{ padding: "10px 16px", fontSize: 14, color: "var(--body)" }}>
                       {m.route}
+                    </td>
+                    <td style={{ padding: "10px 16px" }}>
+                      {m.adherence_pct != null ? (
+                        <span style={{
+                          display: "inline-block",
+                          padding: "2px 8px",
+                          borderRadius: 4,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          background: m.adherence_pct >= 80 ? "var(--stable-tint)" : m.adherence_pct >= 50 ? "#FBE6DD" : "#FDEAEA",
+                          color: m.adherence_pct >= 80 ? "var(--stable)" : m.adherence_pct >= 50 ? "var(--warn)" : "var(--severe)",
+                        }}>
+                          {m.adherence_pct}%
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 13, color: "var(--hint)" }}>—</span>
+                      )}
+                      {m.total_doses > 0 && (
+                        <span style={{ fontSize: 11, color: "var(--hint)", marginLeft: 4 }}>
+                          ({m.taken}/{m.total_doses})
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}
