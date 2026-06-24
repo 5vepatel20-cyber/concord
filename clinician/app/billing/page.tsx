@@ -67,15 +67,14 @@ async function fetchBillingData(year: number, month: number) {
 }
 
 async function logTimeEntry(
-  _prev: any,
   formData: FormData,
-) {
+): Promise<void> {
   "use server";
 
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
+  if (!user) return;
 
   const patientId = formData.get("patient_id") as string;
   const cptCode = formData.get("cpt_code") as string;
@@ -83,7 +82,7 @@ async function logTimeEntry(
   const description = formData.get("description") as string;
 
   if (!patientId || !cptCode || !minutes || minutes < 1 || minutes > 120) {
-    return { error: "Invalid input" };
+    return;
   }
 
   const { error } = await supabase.from("rtm_time_entry").insert({
@@ -93,9 +92,6 @@ async function logTimeEntry(
     minutes,
     description: description || null,
   });
-
-  if (error) return { error: error.message };
-  return { success: true };
 }
 
 async function toggleBilled(periodId: string, billed: boolean) {

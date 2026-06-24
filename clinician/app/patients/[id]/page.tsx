@@ -51,7 +51,6 @@ async function fetchPatient(id: string): Promise<PatientDetail | null> {
     cancer_stage: profile.cancer_stage,
     sex_at_birth: (profile as any).user?.sex_at_birth,
     open_alerts: openAlerts?.length ?? 0,
-    open_alert_list: openAlerts ?? [],
     last_report_at: reports?.[0]?.reported_at ?? null,
     latest_grade: null,
     recent_reports: (reports ?? []).flatMap((r: any) =>

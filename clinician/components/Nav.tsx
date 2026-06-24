@@ -1,9 +1,18 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { createClient } from "../lib/supabase/client";
 
+const links = [
+  { href: "/dashboard", label: "Patient Roster" },
+  { href: "/alerts", label: "Alert Inbox" },
+  { href: "/billing", label: "RTM Billing" },
+  { href: "/compliance", label: "EOM Compliance" },
+];
+
 export function Nav() {
+  const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
 
@@ -12,7 +21,7 @@ export function Nav() {
     router.refresh();
   }
 
-  const linkStyle: React.CSSProperties = {
+  const baseLinkStyle: React.CSSProperties = {
     display: "block",
     padding: "10px 24px",
     fontSize: 15,
@@ -20,41 +29,57 @@ export function Nav() {
     color: "var(--body)",
     textDecoration: "none",
     borderRadius: 8,
+    transition: "background 0.15s, color 0.15s",
   };
 
   return (
-    <nav style={{
-      width: 240,
-      background: "var(--surface)",
-      borderRight: "1px solid var(--hairline)",
-      padding: "24px 16px",
-      display: "flex",
-      flexDirection: "column",
-      gap: 4,
-    }}>
-      <div style={{ fontSize: 20, fontWeight: 600, color: "var(--ink)", padding: "0 8px", marginBottom: 24 }}>
+    <nav
+      style={{
+        width: 240,
+        background: "var(--surface)",
+        borderRight: "1px solid var(--hairline)",
+        padding: "24px 16px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 20,
+          fontWeight: 600,
+          color: "var(--ink)",
+          padding: "0 8px",
+          marginBottom: 24,
+        }}
+      >
         Concord
       </div>
 
-      <a href="/dashboard" style={linkStyle}>
-        Patient Roster
-      </a>
-      <a href="/alerts" style={linkStyle}>
-        Alert Inbox
-      </a>
-      <a href="/billing" style={linkStyle}>
-        RTM Billing
-      </a>
-      <a href="/compliance" style={linkStyle}>
-        EOM Compliance
-      </a>
+      {links.map((link) => {
+        const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+        return (
+          <a
+            key={link.href}
+            href={link.href}
+            style={{
+              ...baseLinkStyle,
+              background: isActive ? "var(--concord-blue-tint)" : "transparent",
+              color: isActive ? "var(--concord-blue)" : "var(--body)",
+              fontWeight: isActive ? 600 : 500,
+            }}
+          >
+            {link.label}
+          </a>
+        );
+      })}
 
       <div style={{ flex: 1 }} />
 
       <button
         onClick={handleSignOut}
         style={{
-          ...linkStyle,
+          ...baseLinkStyle,
           background: "none",
           border: "none",
           textAlign: "left",

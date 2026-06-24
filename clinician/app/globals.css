@@ -1,7 +1,3 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 :root {
   --concord-blue: #1668E0;
   --concord-blue-pressed: #0F4FB0;
