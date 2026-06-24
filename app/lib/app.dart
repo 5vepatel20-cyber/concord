@@ -39,6 +39,7 @@ import 'features/medications/add_medication_screen.dart';
 import 'features/medications/adherence_dashboard_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/onboarding/condition_picker_screen.dart';
+import 'features/onboarding/diagnosis_detail_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/profile/settings_storage.dart';
 import 'features/report/one_pager_screen.dart';
@@ -156,6 +157,10 @@ GoRouter _buildRouter(WidgetRef ref) {
         builder: (_, _) => const ForgotPasswordScreen(),
       ),
       GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingScreen()),
+      GoRoute(
+        path: '/onboarding/diagnosis',
+        builder: (_, _) => const DiagnosisDetailScreen(),
+      ),
 
       // Report detail (full-screen push from the tab).
       GoRoute(

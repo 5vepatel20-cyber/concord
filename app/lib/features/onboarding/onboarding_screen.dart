@@ -244,6 +244,7 @@ class _StepConditionState extends ConsumerState<_StepCondition> {
                                 .setCondition(
                                   id: v,
                                   label: c.condition.displayName,
+                                  category: c.condition.category,
                                 );
                           },
                         ),
@@ -266,6 +267,7 @@ class _StepConditionState extends ConsumerState<_StepCondition> {
 }
 
 // ── Step 2: diagnosis details ────────────────────────────────────────────────
+// Opens the dedicated DiagnosisDetailScreen for category-branching UI.
 
 class _StepDiagnosis extends ConsumerWidget {
   const _StepDiagnosis();
@@ -283,38 +285,66 @@ class _StepDiagnosis extends ConsumerWidget {
           style: t.textTheme.bodyMedium?.copyWith(color: Neutrals.slate),
         ),
         const SizedBox(height: Space.s5),
-        _DatePickerField(
-          label: 'Approximate diagnosis date',
-          value: state.diagnosisDate,
-          onChanged: (d) => ref
-              .read(onboardingControllerProvider.notifier)
-              .setDiagnosisDate(d),
-        ),
-        const SizedBox(height: Space.s4),
-        TextField(
-          decoration: const InputDecoration(
-            labelText: 'Stage (e.g. IIA, IV)',
-            hintText: 'I, II, III, IV — your care team can clarify',
+
+        // ── Summary card of current selections ──
+        if (state.diagnosisDate != null ||
+            state.cancerStage.isNotEmpty ||
+            state.treatmentStatus != null) ...[
+          Container(
+            padding: const EdgeInsets.all(Space.s4),
+            decoration: BoxDecoration(
+              color: Neutrals.mist,
+              borderRadius: BorderRadius.circular(Radii.md),
+              border: Border.all(color: Neutrals.hairline),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Your entries so far',
+                  style: t.textTheme.labelSmall?.copyWith(
+                    color: Neutrals.hint,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: Space.s2),
+                if (state.diagnosisDate != null)
+                  _SummaryRow(
+                    icon: Icons.calendar_today,
+                    label: 'Diagnosed',
+                    value:
+                        '${state.diagnosisDate!.year}-${state.diagnosisDate!.month.toString().padLeft(2, '0')}-${state.diagnosisDate!.day.toString().padLeft(2, '0')}',
+                  ),
+                if (state.cancerStage.isNotEmpty)
+                  _SummaryRow(
+                    icon: Icons.straighten,
+                    label: 'Stage',
+                    value: state.cancerStage,
+                  ),
+                if (state.regimenName.isNotEmpty)
+                  _SummaryRow(
+                    icon: Icons.medication,
+                    label: 'Regimen',
+                    value: state.regimenName,
+                  ),
+                if (state.treatmentStatus != null)
+                  _SummaryRow(
+                    icon: Icons.route,
+                    label: 'Status',
+                    value: _treatmentStatusLabel(state.treatmentStatus!),
+                  ),
+              ],
+            ),
           ),
-          textCapitalization: TextCapitalization.characters,
-          onChanged: (v) =>
-              ref.read(onboardingControllerProvider.notifier).setCancerStage(v),
+          const SizedBox(height: Space.s5),
+        ],
+
+        FilledButton.icon(
+          onPressed: () => context.push('/onboarding/diagnosis'),
+          icon: const Icon(Icons.edit, size: 18),
+          label: const Text('Edit diagnosis details'),
         ),
-        const SizedBox(height: Space.s5),
-        Text('Where are you now?', style: t.textTheme.titleSmall),
-        const SizedBox(height: Space.s2),
-        ...TreatmentStatus.values.map(
-          (s) => RadioListTile<TreatmentStatus>(
-            title: Text(_treatmentStatusLabel(s)),
-            value: s,
-            // ignore: deprecated_member_use
-            groupValue: state.treatmentStatus,
-            // ignore: deprecated_member_use
-            onChanged: (v) => ref
-                .read(onboardingControllerProvider.notifier)
-                .setTreatmentStatus(v),
-          ),
-        ),
+
         const SizedBox(height: Space.s5),
         FilledButton(
           onPressed: state.isStep2Valid
@@ -323,6 +353,39 @@ class _StepDiagnosis extends ConsumerWidget {
           child: const Text('Continue'),
         ),
       ],
+    );
+  }
+}
+
+class _SummaryRow extends StatelessWidget {
+  const _SummaryRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: Space.s1),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Neutrals.slate),
+          const SizedBox(width: Space.s2),
+          Text(
+            '$label: ',
+            style: t.textTheme.bodySmall?.copyWith(color: Neutrals.slate),
+          ),
+          Text(
+            value,
+            style: t.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -550,6 +613,7 @@ class _StepConsentState extends ConsumerState<_StepConsent> {
         'diagnosis_date': dxStr,
         'cancer_stage': s.cancerStage.isEmpty ? null : s.cancerStage,
         'treatment_status': treatmentStatusToString(s.treatmentStatus),
+        'regimen_name': s.regimenName.isEmpty ? null : s.regimenName,
         'consent_version': _disclaimerVersion,
       });
 

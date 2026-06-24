@@ -58,6 +58,7 @@ Thumbs.db
 *.dev-output.txt
 *.dev-log.txt
 *.flutter-log.txt
+*.flutter-run-log.txt
 next-env.d.ts
 .idea/
 .vscode/settings.json

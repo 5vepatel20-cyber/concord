@@ -16,6 +16,7 @@ const BodySchema = z.object({
   diagnosis_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   cancer_stage: z.string().max(20).optional(),
   treatment_status: z.enum(["active_treatment", "surveillance", "remission", "palliative"]),
+  regimen_name: z.string().max(200).optional(),
   consent_version: z.string().min(1),
 });
 
@@ -56,6 +57,7 @@ export const POST = async (req: Request): Promise<Response> => {
       diagnosis_date: body.diagnosis_date ?? null,
       cancer_stage: body.cancer_stage ?? null,
       treatment_status: body.treatment_status,
+      regimen_name: body.regimen_name ?? null,
     }, { onConflict: "user_id" });
 
   if (profileErr) {
