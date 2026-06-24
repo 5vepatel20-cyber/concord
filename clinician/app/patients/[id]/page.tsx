@@ -311,6 +311,101 @@ async function fetchCompliance(patientId: string): Promise<DayCompliance[]> {
   return result;
 }
 
+interface TimelineEvent {
+  id: string;
+  type: "symptom" | "report" | "medication" | "vitals";
+  date: string;
+  label: string;
+  detail: string;
+  grade?: number;
+}
+
+async function fetchTimeline(patientId: string): Promise<TimelineEvent[]> {
+  const supabase = await createClient();
+  const events: TimelineEvent[] = [];
+
+  const { data: symptomReports } = await supabase
+    .from("symptom_report")
+    .select("id, reported_at, symptom_response(composite_grade, symptom_term(display_name))")
+    .eq("patient_id", patientId)
+    .gte("reported_at", new Date(Date.now() - 90 * 86400000).toISOString())
+    .order("reported_at", { ascending: false })
+    .limit(20);
+
+  for (const r of (symptomReports as any[]) ?? []) {
+    const responses = (r.symptom_response ?? []) as any[];
+    const maxGrade = responses.length > 0 ? Math.max(...responses.map((sr: any) => sr.composite_grade ?? 0)) : 0;
+    const terms = responses.map((sr: any) => sr.symptom_term?.display_name).filter(Boolean);
+    events.push({
+      id: `sym-${r.id}`,
+      type: "symptom",
+      date: r.reported_at,
+      label: "Symptoms Logged",
+      detail: terms.length > 0 ? terms.slice(0, 3).join(", ") + (terms.length > 3 ? ` +${terms.length - 3}` : "") : "Check-in completed",
+      grade: maxGrade,
+    });
+  }
+
+  const { data: reports } = await supabase
+    .from("report")
+    .select("id, created_at, kind, narrative")
+    .eq("patient_id", patientId)
+    .gte("created_at", new Date(Date.now() - 90 * 86400000).toISOString())
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  for (const r of (reports as any[]) ?? []) {
+    events.push({
+      id: `rpt-${r.id}`,
+      type: "report",
+      date: r.created_at,
+      label: r.kind === "visit_prep" ? "Visit Prep Report" : r.kind === "interval_summary" ? "Interval Summary" : "Report Generated",
+      detail: r.narrative ? r.narrative.slice(0, 80) + (r.narrative.length > 80 ? "..." : "") : "One-pager generated",
+    });
+  }
+
+  const { data: medEvents } = await supabase
+    .from("medication_event")
+    .select("id, scheduled_for, status, medication:medication_id(display_name)")
+    .in("medication_id", (await supabase.from("medication").select("id").eq("patient_id", patientId).eq("active", true)).data?.map((m: any) => m.id) ?? [])
+    .gte("scheduled_for", new Date(Date.now() - 30 * 86400000).toISOString())
+    .order("scheduled_for", { ascending: false })
+    .limit(20);
+
+  for (const e of (medEvents as any[]) ?? []) {
+    events.push({
+      id: `med-${e.id}`,
+      type: "medication",
+      date: e.scheduled_for,
+      label: `Medication ${e.status.replace("_", " ")}`,
+      detail: e.medication?.display_name ?? "Unknown",
+    });
+  }
+
+  const { data: vitals } = await supabase
+    .from("health_metric_sample")
+    .select("id, type, value, measured_at")
+    .eq("patient_id", patientId)
+    .in("type", ["weight", "hr", "bp_sys", "glucose"])
+    .gte("measured_at", new Date(Date.now() - 30 * 86400000).toISOString())
+    .order("measured_at", { ascending: false })
+    .limit(20);
+
+  const typeLabels: Record<string, string> = { weight: "Weight", hr: "Heart Rate", bp_sys: "Blood Pressure", glucose: "Glucose" };
+  for (const v of (vitals as any[]) ?? []) {
+    events.push({
+      id: `vit-${v.id}`,
+      type: "vitals",
+      date: v.measured_at,
+      label: "Vitals Recorded",
+      detail: `${typeLabels[v.type] ?? v.type}: ${v.value}`,
+    });
+  }
+
+  events.sort((a, b) => b.date.localeCompare(a.date));
+  return events.slice(0, 50);
+}
+
 async function ensureConversation(patientId: string) {
   "use server";
 
@@ -360,6 +455,7 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
   const reports = await fetchReports(params.id);
   const compliance = await fetchCompliance(params.id);
   const medsWithAdherence = await fetchMedicationAdherence(params.id);
+  const timeline = await fetchTimeline(params.id);
 
   const gradeColors: Record<string, string> = {
     "0": "var(--stable)",
@@ -824,6 +920,89 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
                   </div>
                 </div>
               ))}
+            </div>
+          </>
+        )}
+
+        {timeline.length > 0 && (
+          <>
+            <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 12, marginTop: 32 }}>
+              Activity Timeline
+            </h2>
+            <div style={{
+              background: "var(--surface)",
+              borderRadius: 14,
+              border: "1px solid var(--hairline)",
+              overflow: "hidden",
+              padding: 16,
+            }}>
+              {timeline.map((event, i) => {
+                const typeColors: Record<string, string> = {
+                  symptom: "var(--warn)",
+                  report: "var(--concord-blue)",
+                  medication: "var(--stable)",
+                  vitals: "var(--slate)",
+                };
+                const typeIcons: Record<string, string> = {
+                  symptom: "S",
+                  report: "R",
+                  medication: "M",
+                  vitals: "V",
+                };
+                const color = typeColors[event.type] ?? "var(--hint)";
+                return (
+                  <div key={event.id} style={{
+                    display: "flex",
+                    gap: 12,
+                    padding: "8px 0",
+                    borderBottom: i < timeline.length - 1 ? "1px solid var(--hairline)" : "none",
+                  }}>
+                    <div style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                      background: `${color}20`,
+                      color,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      flexShrink: 0,
+                      marginTop: 2,
+                    }}>
+                      {typeIcons[event.type] ?? "?"}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)" }}>
+                          {event.label}
+                        </span>
+                        <span style={{ fontSize: 12, color: "var(--hint)", whiteSpace: "nowrap", marginLeft: 12 }}>
+                          {new Date(event.date).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 13, color: "var(--body)", marginTop: 2, lineHeight: 1.4 }}>
+                        {event.detail}
+                        {event.grade != null && (
+                          <span style={{
+                            display: "inline-block",
+                            marginLeft: 6,
+                            padding: "0 6px",
+                            borderRadius: 4,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            background: `${gradeColors[String(event.grade)] ?? "var(--hint)"}20`,
+                            color: gradeColors[String(event.grade)] ?? "var(--hint)",
+                          }}>
+                            grade {event.grade}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </>
         )}
