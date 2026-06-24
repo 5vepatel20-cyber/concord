@@ -263,15 +263,11 @@ class _DatePickerField extends StatelessWidget {
     required this.label,
     required this.value,
     required this.onChanged,
-    this.firstDate,
-    this.lastDate,
   });
 
   final String label;
   final DateTime? value;
   final ValueChanged<DateTime?> onChanged;
-  final DateTime? firstDate;
-  final DateTime? lastDate;
 
   @override
   Widget build(BuildContext context) {
@@ -280,8 +276,8 @@ class _DatePickerField extends StatelessWidget {
         final picked = await showDatePicker(
           context: context,
           initialDate: value ?? DateTime.now(),
-          firstDate: firstDate ?? DateTime(2000),
-          lastDate: lastDate ?? DateTime.now().add(const Duration(days: 365)),
+          firstDate: DateTime(2000),
+          lastDate: DateTime.now().add(const Duration(days: 365)),
         );
         onChanged(picked);
       },

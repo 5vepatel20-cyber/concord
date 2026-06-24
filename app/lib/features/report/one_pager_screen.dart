@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../data/repositories/report_repository.dart';
 import '../../theme/tokens.dart';
 import '../../theme/typography.dart';
+import 'one_pager_pdf.dart';
 
 class OnePagerScreen extends ConsumerStatefulWidget {
   const OnePagerScreen({super.key, this.days = 14});
@@ -20,6 +21,7 @@ class _OnePagerScreenState extends ConsumerState<OnePagerScreen> {
   Future<OnePagerReport>? _future;
   OnePagerReport? _report;
   bool _sharing = false;
+  bool _savingPdf = false;
 
   @override
   void initState() {
@@ -64,24 +66,63 @@ class _OnePagerScreenState extends ConsumerState<OnePagerScreen> {
     }
   }
 
+  Future<void> _savePdf() async {
+    final report = _report;
+    if (report == null) return;
+    setState(() => _savingPdf = true);
+    try {
+      await saveOrPrintPdf(report);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('PDF saved'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('PDF failed: $e'),
+          backgroundColor: SeverityColors.severe,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _savingPdf = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Symptom Summary'),
         actions: [
-          if (_report != null && _report!.reportId.isNotEmpty)
+          if (_report != null) ...[
             IconButton(
-              icon: _sharing
+              icon: _savingPdf
                   ? const SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.share),
-              tooltip: 'Share',
-              onPressed: _sharing ? null : _shareReport,
+                  : const Icon(Icons.picture_as_pdf),
+              tooltip: 'Save PDF',
+              onPressed: _savingPdf ? null : _savePdf,
             ),
+            if (_report!.reportId.isNotEmpty)
+              IconButton(
+                icon: _sharing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.share),
+                tooltip: 'Share',
+                onPressed: _sharing ? null : _shareReport,
+              ),
+          ],
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Regenerate',
