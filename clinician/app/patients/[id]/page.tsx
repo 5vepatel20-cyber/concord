@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "../../../lib/supabase/server";
 import { Nav } from "../../../components/Nav";
+import { SymptomTrendChart } from "../../../components/SymptomTrendChart";
 import type { PatientDetail } from "../../../lib/types";
 
 async function fetchPatient(id: string): Promise<PatientDetail | null> {
@@ -94,6 +95,19 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
           {patient.cancer_stage ? ` · Stage ${patient.cancer_stage}` : ""}
           {patient.diagnosis_date ? ` · Diagnosed ${patient.diagnosis_date}` : ""}
         </p>
+
+        <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 12 }}>
+          Symptom Trend
+        </h2>
+        <div style={{
+          background: "var(--surface)",
+          borderRadius: 14,
+          border: "1px solid var(--hairline)",
+          overflow: "hidden",
+          marginBottom: 24,
+        }}>
+          <SymptomTrendChart reports={patient.recent_reports} />
+        </div>
 
         <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 12 }}>
           Recent Symptoms

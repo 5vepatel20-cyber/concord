@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server";
 import { Nav } from "../../components/Nav";
+import { PatientRosterTable } from "../../components/PatientRosterTable";
 import type { PatientSummary } from "../../lib/types";
 
 async function fetchPatients(): Promise<PatientSummary[]> {
@@ -96,91 +97,7 @@ export default async function DashboardPage() {
           Patient Roster
         </h1>
 
-        <div style={{
-          background: "var(--surface)",
-          borderRadius: 14,
-          border: "1px solid var(--hairline)",
-          overflow: "hidden",
-        }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid var(--hairline)", textAlign: "left" }}>
-                {["Patient", "Diagnosis", "Status", "Alerts"].map((h) => (
-                  <th key={h} style={{
-                    padding: "12px 16px",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "var(--slate)",
-                    textTransform: "uppercase",
-                    letterSpacing: 0.4,
-                  }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {patients.length === 0 ? (
-                <tr>
-                  <td colSpan={4} style={{ padding: 24, textAlign: "center", color: "var(--hint)", fontSize: 15 }}>
-                    No patients in your panel yet.
-                  </td>
-                </tr>
-              ) : patients.map((p) => (
-                <tr
-                  key={p.id}
-                  style={{ borderBottom: "1px solid var(--hairline)", cursor: "pointer" }}
-                  onClick={() => window.location.href = `/patients/${p.id}`}
-                >
-                  <td style={{ padding: "12px 16px" }}>
-                    <div style={{ fontWeight: 600, color: "var(--ink)" }}>{p.full_name}</div>
-                    <div style={{ fontSize: 13, color: "var(--slate)" }}>{p.date_of_birth}</div>
-                  </td>
-                  <td style={{ padding: "12px 16px", fontSize: 15, color: "var(--body)" }}>
-                    {p.primary_diagnosis}
-                  </td>
-                  <td style={{ padding: "12px 16px" }}>
-                    <span style={{
-                      display: "inline-block",
-                      padding: "2px 10px",
-                      borderRadius: 6,
-                      fontSize: 12,
-                      fontWeight: 500,
-                      background: p.treatment_status === "active_treatment"
-                        ? "var(--concord-blue-tint)"
-                        : "var(--mist)",
-                      color: p.treatment_status === "active_treatment"
-                        ? "var(--concord-blue)"
-                        : "var(--slate)",
-                    }}>
-                      {p.treatment_status.replace(/_/g, " ")}
-                    </span>
-                  </td>
-                  <td style={{ padding: "12px 16px" }}>
-                    {p.open_alerts > 0 ? (
-                      <span style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        width: 24,
-                        height: 24,
-                        borderRadius: 12,
-                        background: "var(--severe)",
-                        color: "var(--surface)",
-                        fontSize: 12,
-                        fontWeight: 600,
-                      }}>
-                        {p.open_alerts}
-                      </span>
-                    ) : (
-                      <span style={{ color: "var(--hint)", fontSize: 14 }}>—</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <PatientRosterTable patients={patients} />
       </main>
     </div>
   );
