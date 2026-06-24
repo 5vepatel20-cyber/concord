@@ -16,6 +16,7 @@ import '../../core/health/health_repository.dart';
 import '../../core/sync/pending_count_provider.dart';
 import '../../data/supabase/supabase_provider.dart';
 import '../../theme/tokens.dart';
+import '../../data/repositories/report_repository.dart';
 import '../../theme/typography.dart';
 import '../symptoms/quick_log_widget.dart';
 import '../symptoms/symptom_history_screen.dart';
@@ -78,7 +79,9 @@ class HomeScreen extends ConsumerWidget {
             ),
             const SizedBox(height: Space.s2),
             const _PendingSyncBadge(),
-            const SizedBox(height: Space.s5),
+            const SizedBox(height: Space.s2),
+            const _WorseningCard(),
+            const SizedBox(height: Space.s3),
             const QuickLogWidget(),
             const SizedBox(height: Space.s3),
             TextButton.icon(
@@ -133,6 +136,138 @@ class _PendingSyncBadge extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// SYM-06: Worsening symptoms card. Shows when one or more symptoms have
+/// worsened (grade increased >= 1) or appeared new vs the prior 7-day window.
+/// Only renders when there IS a change — otherwise it stays hidden.
+class _WorseningCard extends ConsumerStatefulWidget {
+  const _WorseningCard();
+
+  @override
+  ConsumerState<_WorseningCard> createState() => _WorseningCardState();
+}
+
+class _WorseningCardState extends ConsumerState<_WorseningCard> {
+  OnePagerReport? _report;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final repo = ref.read(reportRepositoryProvider);
+      final report = await repo.generateOnePager(days: 7);
+      if (mounted) setState(() => _report = report);
+    } catch (_) {
+      // Silently hide on error — non-blocking dashboard card.
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading || _report == null) return const SizedBox.shrink();
+    final worsening = _report!.newOrWorsening;
+    if (worsening.isEmpty) return const SizedBox.shrink();
+
+    final t = Theme.of(context);
+    return Card(
+      child: InkWell(
+        onTap: () => context.push('/report/generate'),
+        borderRadius: BorderRadius.circular(Radii.md),
+        child: Padding(
+          padding: const EdgeInsets.all(Space.s4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.trending_up,
+                    size: 20,
+                    color: SeverityColors.moderate,
+                  ),
+                  const SizedBox(width: Space.s2),
+                  Text(
+                    '${worsening.length} symptom${worsening.length == 1 ? '' : 's'} need attention',
+                    style: t.textTheme.titleSmall?.copyWith(
+                      color: SeverityColors.moderate,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: Space.s2),
+              ...worsening
+                  .take(4)
+                  .map(
+                    (s) => Padding(
+                      padding: const EdgeInsets.only(bottom: Space.s1),
+                      child: Row(
+                        children: [
+                          Icon(
+                            s.direction == 'new'
+                                ? Icons.add_circle_outline
+                                : Icons.arrow_upward,
+                            size: 16,
+                            color: s.direction == 'new'
+                                ? SeverityColors.moderate
+                                : SeverityColors.severe,
+                          ),
+                          const SizedBox(width: Space.s2),
+                          Expanded(
+                            child: Text(
+                              s.termName,
+                              style: t.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            s.direction == 'new'
+                                ? 'New'
+                                : '${s.priorAvgGrade.toStringAsFixed(0)}→${s.currentAvgGrade.toStringAsFixed(0)}',
+                            style: t.textTheme.bodySmall?.copyWith(
+                              color: Neutrals.slate,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              if (worsening.length > 4)
+                Padding(
+                  padding: const EdgeInsets.only(top: Space.s1),
+                  child: Text(
+                    '+${worsening.length - 4} more',
+                    style: t.textTheme.bodySmall?.copyWith(
+                      color: Neutrals.slate,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: Space.s2),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'Tap to view report',
+                  style: t.textTheme.bodySmall?.copyWith(
+                    color: t.colorScheme.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
