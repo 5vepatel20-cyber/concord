@@ -4,6 +4,71 @@ import { Nav } from "../../../components/Nav";
 import { SymptomTrendChart } from "../../../components/SymptomTrendChart";
 import type { PatientDetail } from "../../../lib/types";
 
+const METRIC_LABELS: Record<string, { label: string; unit: string; color: string }> = {
+  weight: { label: "Weight", unit: "kg", color: "#1ABC9C" },
+  hr: { label: "Heart Rate", unit: "bpm", color: "#E74C3C" },
+  bp_sys: { label: "Systolic BP", unit: "mmHg", color: "#E67E22" },
+  bp_dia: { label: "Diastolic BP", unit: "mmHg", color: "#F39C12" },
+  glucose: { label: "Glucose", unit: "mg/dL", color: "#2ECC71" },
+};
+
+interface VitalsGroup {
+  type: string;
+  label: string;
+  unit: string;
+  color: string;
+  samples: { value: number; measured_at: string }[];
+  latest: number | null;
+  min: number | null;
+  max: number | null;
+  avg: number | null;
+}
+
+async function fetchVitals(patientId: string): Promise<VitalsGroup[]> {
+  const supabase = await createClient();
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 90);
+
+  const { data } = await supabase
+    .from("health_metric_sample")
+    .select("type, value, measured_at")
+    .eq("patient_id", patientId)
+    .gte("measured_at", cutoff.toISOString())
+    .in("type", ["weight", "hr", "bp_sys", "bp_dia", "glucose"])
+    .order("measured_at", { ascending: true });
+
+  if (!data || data.length === 0) return [];
+
+  const grouped = new Map<string, { value: number; measured_at: string }[]>();
+  for (const row of data as any[]) {
+    if (row.value == null) continue;
+    const list = grouped.get(row.type) ?? [];
+    list.push({ value: row.value, measured_at: row.measured_at });
+    grouped.set(row.type, list);
+  }
+
+  const result: VitalsGroup[] = [];
+  for (const [type, samples] of grouped) {
+    const meta = METRIC_LABELS[type];
+    if (!meta) continue;
+    const values = samples.map((s) => s.value);
+    result.push({
+      type,
+      label: meta.label,
+      unit: meta.unit,
+      color: meta.color,
+      samples,
+      latest: values[values.length - 1],
+      min: Math.min(...values),
+      max: Math.max(...values),
+      avg: Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10,
+    });
+  }
+
+  return result.sort((a, b) => a.label.localeCompare(b.label));
+}
+
 async function fetchPatient(id: string): Promise<PatientDetail | null> {
   const supabase = await createClient();
 
@@ -75,6 +140,8 @@ async function fetchPatient(id: string): Promise<PatientDetail | null> {
 export default async function PatientDetailPage({ params }: { params: { id: string } }) {
   const patient = await fetchPatient(params.id);
   if (!patient) notFound();
+
+  const vitals = await fetchVitals(params.id);
 
   const gradeColors: Record<string, string> = {
     "0": "var(--stable)",
@@ -217,6 +284,88 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
             </table>
           )}
         </div>
+
+        {vitals.length > 0 && (
+          <>
+            <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 12, marginTop: 32 }}>
+              Vitals
+            </h2>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+              gap: 12,
+            }}>
+              {vitals.map((v) => (
+                <div key={v.type} style={{
+                  background: "var(--surface)",
+                  borderRadius: 14,
+                  border: "1px solid var(--hairline)",
+                  padding: 16,
+                }}>
+                  <div style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--slate)",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.3,
+                    marginBottom: 8,
+                  }}>
+                    {v.label}
+                  </div>
+                  <div style={{
+                    fontSize: 28,
+                    fontWeight: 700,
+                    color: "var(--ink)",
+                    marginBottom: 4,
+                  }}>
+                    {v.latest != null ? `${v.latest} ` : "— "}
+                    <span style={{ fontSize: 14, fontWeight: 400, color: "var(--hint)" }}>
+                      {v.unit}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 13, color: "var(--hint)", marginBottom: 12 }}>
+                    min {v.min} &middot; max {v.max} &middot; avg {v.avg}
+                  </div>
+                  <svg width="100%" height={48} viewBox="0 0 200 48" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id={`grad-${v.type}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={v.color} stopOpacity={0.2} />
+                        <stop offset="100%" stopColor={v.color} stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    {(() => {
+                      const vals = v.samples.map((s) => s.value);
+                      const mn = Math.min(...vals);
+                      const mx = Math.max(...vals);
+                      const range = mx - mn || 1;
+                      const w = 200;
+                      const h = 48;
+                      const pts = vals.map((val, i) => {
+                        const x = (i / (vals.length - 1 || 1)) * w;
+                        const y = h - ((val - mn) / range) * (h - 4) - 2;
+                        return `${x},${y}`;
+                      });
+                      const area = `M0,48 L${pts.join(" L")} L${w},48 Z`;
+                      return (
+                        <>
+                          <path d={area} fill={`url(#grad-${v.type})`} />
+                          <polyline
+                            points={pts.join(" ")}
+                            fill="none"
+                            stroke={v.color}
+                            strokeWidth={2}
+                            strokeLinejoin="round"
+                            strokeLinecap="round"
+                          />
+                        </>
+                      );
+                    })()}
+                  </svg>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </main>
     </div>
   );
