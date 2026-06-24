@@ -1,7 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { PatientSummary } from "../lib/types";
+
+const STATUSES = ["all", "active_treatment", "surveillance", "completed", "unknown"] as const;
+const STATUS_LABELS: Record<string, string> = {
+  all: "All",
+  active_treatment: "Active Treatment",
+  surveillance: "Surveillance",
+  completed: "Completed",
+  unknown: "Unknown",
+};
+
+type SortKey = "name" | "last_report" | "alerts";
 
 export function PatientRosterTable({
   patients,
@@ -9,14 +20,91 @@ export function PatientRosterTable({
   patients: PatientSummary[];
 }) {
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortAsc, setSortAsc] = useState(true);
 
-  const filtered = query.trim()
-    ? patients.filter(
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: patients.length };
+    for (const s of STATUSES) {
+      if (s !== "all") counts[s] = patients.filter((p) => p.treatment_status === s).length;
+    }
+    return counts;
+  }, [patients]);
+
+  const filtered = useMemo(() => {
+    let result = patients;
+
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      result = result.filter(
         (p) =>
-          p.full_name.toLowerCase().includes(query.toLowerCase()) ||
-          p.primary_diagnosis.toLowerCase().includes(query.toLowerCase()),
-      )
-    : patients;
+          p.full_name.toLowerCase().includes(q) ||
+          p.primary_diagnosis.toLowerCase().includes(q),
+      );
+    }
+
+    if (statusFilter !== "all") {
+      result = result.filter((p) => p.treatment_status === statusFilter);
+    }
+
+    result = [...result].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === "name") {
+        cmp = a.full_name.localeCompare(b.full_name);
+      } else if (sortKey === "last_report") {
+        const aDate = a.last_report_at ?? "";
+        const bDate = b.last_report_at ?? "";
+        cmp = aDate.localeCompare(bDate);
+      } else if (sortKey === "alerts") {
+        cmp = a.open_alerts - b.open_alerts;
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+
+    return result;
+  }, [patients, query, statusFilter, sortKey, sortAsc]);
+
+  const chipStyle = (active: boolean): React.CSSProperties => ({
+    padding: "4px 12px",
+    fontSize: 12,
+    fontWeight: 500,
+    border: "none",
+    borderRadius: 6,
+    cursor: "pointer",
+    background: active ? "var(--concord-blue)" : "var(--mist)",
+    color: active ? "var(--surface)" : "var(--slate)",
+    whiteSpace: "nowrap",
+  });
+
+  const sortableHead = (label: string, key: SortKey) => (
+    <th
+      onClick={() => {
+        if (sortKey === key) setSortAsc(!sortAsc);
+        else { setSortKey(key); setSortAsc(true); }
+      }}
+      style={{
+        padding: "12px 16px",
+        fontSize: 13,
+        fontWeight: 600,
+        color: "var(--slate)",
+        textTransform: "uppercase",
+        letterSpacing: 0.4,
+        cursor: "pointer",
+        userSelect: "none",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label} {sortKey === key ? (sortAsc ? "\u25B2" : "\u25BC") : ""}
+    </th>
+  );
+
+  const gradeColors: Record<number, string> = {
+    0: "var(--stable)",
+    1: "var(--caution)",
+    2: "var(--warn)",
+    3: "var(--severe)",
+  };
 
   return (
     <div
@@ -31,6 +119,9 @@ export function PatientRosterTable({
         style={{
           padding: "12px 16px",
           borderBottom: "1px solid var(--hairline)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
         }}
       >
         <input
@@ -50,6 +141,17 @@ export function PatientRosterTable({
             boxSizing: "border-box",
           }}
         />
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {STATUSES.map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              style={chipStyle(statusFilter === s)}
+            >
+              {STATUS_LABELS[s]} ({statusCounts[s] ?? 0})
+            </button>
+          ))}
+        </div>
       </div>
 
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -57,28 +159,36 @@ export function PatientRosterTable({
           <tr
             style={{ borderBottom: "1px solid var(--hairline)", textAlign: "left" }}
           >
-            {["Patient", "Diagnosis", "Status", "Alerts"].map((h) => (
-              <th
-                key={h}
-                style={{
-                  padding: "12px 16px",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "var(--slate)",
-                  textTransform: "uppercase",
-                  letterSpacing: 0.4,
-                }}
-              >
-                {h}
-              </th>
-            ))}
+            {sortableHead("Patient", "name")}
+            <th style={{
+              padding: "12px 16px",
+              fontSize: 13,
+              fontWeight: 600,
+              color: "var(--slate)",
+              textTransform: "uppercase",
+              letterSpacing: 0.4,
+            }}>
+              Diagnosis
+            </th>
+            <th style={{
+              padding: "12px 16px",
+              fontSize: 13,
+              fontWeight: 600,
+              color: "var(--slate)",
+              textTransform: "uppercase",
+              letterSpacing: 0.4,
+            }}>
+              Status
+            </th>
+            {sortableHead("Last Report", "last_report")}
+            {sortableHead("Alerts", "alerts")}
           </tr>
         </thead>
         <tbody>
           {filtered.length === 0 ? (
             <tr>
               <td
-                colSpan={4}
+                colSpan={5}
                 style={{
                   padding: 24,
                   textAlign: "center",
@@ -86,7 +196,11 @@ export function PatientRosterTable({
                   fontSize: 15,
                 }}
               >
-                {query ? "No patients match your search." : "No patients in your panel yet."}
+                {query
+                  ? "No patients match your search."
+                  : statusFilter !== "all"
+                  ? "No patients with this status."
+                  : "No patients in your panel yet."}
               </td>
             </tr>
           ) : (
@@ -136,6 +250,28 @@ export function PatientRosterTable({
                   >
                     {p.treatment_status.replace(/_/g, " ")}
                   </span>
+                </td>
+                <td style={{ padding: "12px 16px", fontSize: 14 }}>
+                  {p.last_report_at ? (
+                    <span style={{ color: "var(--body)" }}>
+                      {new Date(p.last_report_at).toLocaleDateString()}
+                      {p.latest_grade != null && (
+                        <span style={{
+                          marginLeft: 6,
+                          padding: "0 6px",
+                          borderRadius: 4,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          background: `${gradeColors[p.latest_grade] ?? "var(--hint)"}20`,
+                          color: gradeColors[p.latest_grade] ?? "var(--hint)",
+                        }}>
+                          g{p.latest_grade}
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <span style={{ color: "var(--hint)" }}>&mdash;</span>
+                  )}
                 </td>
                 <td style={{ padding: "12px 16px" }}>
                   {p.open_alerts > 0 ? (

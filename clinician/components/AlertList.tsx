@@ -112,7 +112,7 @@ export function AlertList({
                         {a.status}
                       </span>
                     </td>
-                    <td style={{ padding: "12px 16px" }}>
+                    <td style={{ padding: "12px 16px", display: "flex", gap: 6 }}>
                       {a.report && (
                         <button
                           onClick={() => setExpanded(isExpanded ? null : a.id)}
@@ -129,6 +129,16 @@ export function AlertList({
                           {isExpanded ? "Hide" : "View"}
                         </button>
                       )}
+                      <a href={`/alerts/${a.id}`} style={{
+                        padding: "4px 10px",
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: "var(--slate)",
+                        textDecoration: "none",
+                        whiteSpace: "nowrap",
+                      }}>
+                        Details &rarr;
+                      </a>
                     </td>
                     <td style={{ padding: "12px 16px" }}>
                       {a.status === "open" && (

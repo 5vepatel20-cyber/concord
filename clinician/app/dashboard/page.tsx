@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server";
 import { Nav } from "../../components/Nav";
 import { PatientRosterTable } from "../../components/PatientRosterTable";
+import { LiveStats } from "../../components/LiveStats";
 import type { PatientSummary } from "../../lib/types";
 
 async function fetchPatients(): Promise<PatientSummary[]> {
@@ -150,28 +151,11 @@ export default async function DashboardPage() {
           </a>
         </div>
 
-        <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
-          {[
-            { label: "Total Patients", value: patients.length, color: "var(--concord-blue)" },
-            { label: "Open Alerts", value: totalAlerts ?? 0, color: totalAlerts && totalAlerts > 0 ? "var(--severe)" : "var(--stable)" },
-            { label: "Unread Messages", value: unreadMessages, color: unreadMessages > 0 ? "var(--warn)" : "var(--hint)" },
-          ].map((s) => (
-            <div key={s.label} style={{
-              flex: 1,
-              background: "var(--surface)",
-              borderRadius: 12,
-              border: "1px solid var(--hairline)",
-              padding: "14px 16px",
-            }}>
-              <div style={{ fontSize: 13, color: "var(--slate)", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 2 }}>
-                {s.label}
-              </div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: s.color }}>
-                {s.value}
-              </div>
-            </div>
-          ))}
-        </div>
+        <LiveStats
+          patientCount={patients.length}
+          initialOpenAlerts={totalAlerts ?? 0}
+          initialUnreadMessages={unreadMessages}
+        />
 
         <PatientRosterTable patients={patients} />
       </main>

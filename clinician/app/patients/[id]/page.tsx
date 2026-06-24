@@ -446,6 +446,152 @@ async function ensureConversation(patientId: string) {
   return conv.id;
 }
 
+async function generateReport(patientId: string) {
+  "use server";
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const { data: profile } = await supabase
+    .from("user")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "clinician" && profile?.role !== "admin") return;
+
+  const windowStart = new Date(Date.now() - 14 * 86400000).toISOString();
+
+  const { data: symptoms } = await supabase
+    .from("symptom_response")
+    .select("composite_grade, created_at, term:symptom_term(pro_ctcae_code, display_name, body_system), report:symptom_report!inner(reported_at, patient_id)")
+    .eq("report.patient_id", patientId)
+    .gte("report.reported_at", windowStart)
+    .order("report(reported_at)", { ascending: true });
+
+  const { data: priorSymptoms } = await supabase
+    .from("symptom_response")
+    .select("composite_grade, term:symptom_term(pro_ctcae_code), report:symptom_report!inner(reported_at, patient_id)")
+    .eq("report.patient_id", patientId)
+    .gte("report.reported_at", new Date(Date.now() - 28 * 86400000).toISOString())
+    .lt("report.reported_at", windowStart)
+    .order("report(reported_at)", { ascending: true });
+
+  const { data: meds } = await supabase
+    .from("medication")
+    .select("id, display_name")
+    .eq("patient_id", patientId)
+    .eq("active", true);
+
+  const medIds = (meds ?? []).map((m: any) => m.id);
+  const adherenceStats: Array<{ medication_id: string; display_name: string; total: number; taken: number; adherence_pct: number }> = [];
+  if (medIds.length > 0) {
+    const { data: events } = await supabase
+      .from("medication_event")
+      .select("medication_id, status")
+      .in("medication_id", medIds)
+      .gte("scheduled_for", windowStart);
+
+    const eventsByMed = new Map<string, { total: number; taken: number }>();
+    for (const e of (events as any[]) ?? []) {
+      const acc = eventsByMed.get(e.medication_id) ?? { total: 0, taken: 0 };
+      acc.total++;
+      if (e.status === "taken") acc.taken++;
+      eventsByMed.set(e.medication_id, acc);
+    }
+    for (const med of (meds as any[]) ?? []) {
+      const acc = eventsByMed.get(med.id);
+      if (!acc || acc.total === 0) {
+        adherenceStats.push({ medication_id: med.id, display_name: med.display_name, total: 0, taken: 0, adherence_pct: 0 });
+      } else {
+        adherenceStats.push({ medication_id: med.id, display_name: med.display_name, total: acc.total, taken: acc.taken, adherence_pct: Math.round((acc.taken / acc.total) * 100) });
+      }
+    }
+  }
+
+  const { data: vitalsRaw } = await supabase
+    .from("health_metric_sample")
+    .select("type, value, measured_at")
+    .eq("patient_id", patientId)
+    .gte("measured_at", windowStart)
+    .order("measured_at", { ascending: true });
+
+  const vitalsByDate = new Map<string, Record<string, any>>();
+  for (const v of (vitalsRaw as any[]) ?? []) {
+    const dateKey = v.measured_at.slice(0, 10);
+    let entry = vitalsByDate.get(dateKey);
+    if (!entry) { entry = { date: dateKey }; vitalsByDate.set(dateKey, entry); }
+    if (v.type === "weight") entry.weight_kg = Math.round((v.value ?? 0) * 10) / 10;
+    if (v.type === "hr") entry.avg_hr_bpm = Math.round(v.value ?? 0);
+    if (v.type === "bp_sys") entry.bp_sys_avg = Math.round(v.value ?? 0);
+    if (v.type === "bp_dia") entry.bp_dia_avg = Math.round(v.value ?? 0);
+  }
+
+  const heatmap: Array<{ date: string; term_code: string; term_name: string; body_system: string; grade: number }> = [];
+  const termGradeCounts = new Map<string, { sum: number; count: number }>();
+  for (const sr of (symptoms as any[]) ?? []) {
+    const term = Array.isArray(sr.term) ? sr.term[0] : sr.term;
+    const report = Array.isArray(sr.report) ? sr.report[0] : sr.report;
+    if (!term || !report) continue;
+    const date = report.reported_at.slice(0, 10);
+    heatmap.push({ date, term_code: term.pro_ctcae_code, term_name: term.display_name, body_system: term.body_system, grade: sr.composite_grade ?? 0 });
+    const acc = termGradeCounts.get(term.pro_ctcae_code) ?? { sum: 0, count: 0 };
+    acc.sum += sr.composite_grade ?? 0;
+    acc.count++;
+    termGradeCounts.set(term.pro_ctcae_code, acc);
+  }
+
+  const worstEpisodes = [...termGradeCounts.entries()]
+    .map(([code, acc]) => ({ term_code: code, term_name: heatmap.find((h) => h.term_code === code)?.term_name ?? code, grade: Math.round((acc.sum / acc.count) * 10) / 10, count: acc.count }))
+    .sort((a, b) => b.grade - a.grade)
+    .slice(0, 3);
+
+  const priorAvg = new Map<string, { sum: number; count: number }>();
+  for (const sr of (priorSymptoms as any[]) ?? []) {
+    const term = Array.isArray(sr.term) ? sr.term[0] : sr.term;
+    if (!term) continue;
+    const acc = priorAvg.get(term.pro_ctcae_code) ?? { sum: 0, count: 0 };
+    acc.sum += sr.composite_grade ?? 0;
+    acc.count++;
+    priorAvg.set(term.pro_ctcae_code, acc);
+  }
+
+  const newOrWorsening: Array<{ term_code: string; term_name: string; prior_avg_grade: number; current_avg_grade: number; direction: string }> = [];
+  for (const [code, current] of termGradeCounts) {
+    const currentAvg = current.sum / current.count;
+    const prior = priorAvg.get(code);
+    if (!prior) {
+      newOrWorsening.push({ term_code: code, term_name: heatmap.find((h) => h.term_code === code)?.term_name ?? code, prior_avg_grade: 0, current_avg_grade: Math.round(currentAvg * 10) / 10, direction: "new" });
+    } else {
+      const priorAvgVal = prior.sum / prior.count;
+      if (currentAvg >= priorAvgVal + 1) {
+        newOrWorsening.push({ term_code: code, term_name: heatmap.find((h) => h.term_code === code)?.term_name ?? code, prior_avg_grade: Math.round(priorAvgVal * 10) / 10, current_avg_grade: Math.round(currentAvg * 10) / 10, direction: "worsened" });
+      }
+    }
+  }
+
+  const overallAdherencePct = adherenceStats.length > 0 ? Math.round(adherenceStats.reduce((s, a) => s + a.adherence_pct, 0) / adherenceStats.length) : null;
+
+  const payload = {
+    generated_at: new Date().toISOString(),
+    period_days: 14,
+    patient_id: patientId,
+    symptom_heatmap: heatmap,
+    worst_episodes: worstEpisodes,
+    new_or_worsening: newOrWorsening,
+    medication_adherence: { by_medication: adherenceStats, overall_pct: overallAdherencePct },
+    vitals: [...vitalsByDate.values()].sort((a: any, b: any) => a.date.localeCompare(b.date)),
+  };
+
+  await supabase.from("report").insert({
+    patient_id: patientId,
+    kind: "interval_summary",
+    date_range: `[${windowStart.slice(0, 10)},${new Date().toISOString().slice(0, 10)})`,
+    structured_payload: payload,
+  });
+}
+
 export default async function PatientDetailPage({ params }: { params: { id: string } }) {
   const patient = await fetchPatient(params.id);
   if (!patient) notFound();
@@ -832,11 +978,27 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
           </>
         )}
 
-        {reports.length > 0 && (
-          <>
-            <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 12, marginTop: 32 }}>
+        <>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 32, marginBottom: 12 }}>
+            <h2 style={{ fontSize: 17, fontWeight: 600, margin: 0 }}>
               Patient Reports
             </h2>
+            <form action={generateReport.bind(null, params.id)}>
+              <button type="submit" style={{
+                padding: "8px 16px",
+                fontSize: 13,
+                fontWeight: 500,
+                background: "var(--concord-blue)",
+                color: "var(--surface)",
+                border: "none",
+                borderRadius: 8,
+                cursor: "pointer",
+              }}>
+                Generate Report (14d)
+              </button>
+            </form>
+          </div>
+          {reports.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {reports.map((r) => (
                 <div key={r.id} style={{
@@ -921,8 +1083,20 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
                 </div>
               ))}
             </div>
-          </>
-        )}
+          ) : (
+            <div style={{
+              background: "var(--surface)",
+              borderRadius: 14,
+              border: "1px solid var(--hairline)",
+              padding: 24,
+              textAlign: "center",
+              color: "var(--hint)",
+              fontSize: 15,
+            }}>
+              No reports yet. Click "Generate Report" to create a 14-day interval summary.
+            </div>
+          )}
+        </>
 
         {timeline.length > 0 && (
           <>
