@@ -56,13 +56,17 @@ class ProfileScreen extends ConsumerWidget {
                   subtitle: const Text('Tap to change'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () async {
-                    final result = await context.push<Map<String, String>>('/conditions/pick');
+                    final result = await context.push<Map<String, String>>(
+                      '/conditions/pick',
+                    );
                     if (result == null || !context.mounted) return;
                     final session = supabase.auth.currentSession;
                     if (session == null) return;
                     try {
                       await http.post(
-                        Uri.parse('${ref.read(apiBaseUrlProvider)}/api/conditions/select'),
+                        Uri.parse(
+                          '${ref.read(apiBaseUrlProvider)}/api/conditions/select',
+                        ),
                         headers: {
                           'Content-Type': 'application/json',
                           'Authorization': 'Bearer ${session.accessToken}',
@@ -71,7 +75,11 @@ class ProfileScreen extends ConsumerWidget {
                       );
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Condition updated to ${result['label']}')),
+                          SnackBar(
+                            content: Text(
+                              'Condition updated to ${result['label']}',
+                            ),
+                          ),
                         );
                       }
                     } catch (_) {}
@@ -180,7 +188,7 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const Divider(height: 1),
                 ListTile(
-                  leading: const Icon(Icons.iv_bag),
+                  leading: const Icon(Icons.medication),
                   title: const Text('Chemo regimens'),
                   subtitle: const Text(
                     'Create cyclical chemo schedule templates.',
@@ -219,9 +227,7 @@ class ProfileScreen extends ConsumerWidget {
                 ListTile(
                   leading: const Icon(Icons.notifications_active_outlined),
                   title: const Text('Alert history'),
-                  subtitle: const Text(
-                    'View and acknowledge symptom alerts.',
-                  ),
+                  subtitle: const Text('View and acknowledge symptom alerts.'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push('/alerts'),
                 ),
@@ -244,14 +250,10 @@ class ProfileScreen extends ConsumerWidget {
                 ListTile(
                   leading: const Icon(Icons.chat_bubble_outline),
                   title: const Text('Inbox'),
-                  subtitle: const Text(
-                    'Secure messages with your care team.',
-                  ),
+                  subtitle: const Text('Secure messages with your care team.'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push('/messages'),
                 ),
-              ],
-            ),
               ],
             ),
 

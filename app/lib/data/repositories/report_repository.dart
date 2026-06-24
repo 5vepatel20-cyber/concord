@@ -178,6 +178,7 @@ class OnePagerReport {
         .toList();
 
     return OnePagerReport(
+      reportId: json['report_id'] as String,
       generatedAt: json['generated_at'] as String? ?? '',
       periodDays: (json['period_days'] as num?)?.toInt() ?? 14,
       heatmapRows: heatmapRows,

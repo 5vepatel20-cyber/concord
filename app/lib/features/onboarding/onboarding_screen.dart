@@ -17,6 +17,7 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/health/health_repository.dart';
+import '../../data/models/condition.dart';
 import '../../data/repositories/vocab_repository.dart';
 import '../../data/supabase/supabase_provider.dart';
 import '../../theme/tokens.dart';

@@ -118,7 +118,7 @@ export default async function AlertDetailPage({ params }: { params: { id: string
   };
 
   const s = severityStyles[alert.severity_level] ?? severityStyles.info;
-  const maxGrade = alert.report ? Math.max(...alert.report.responses.map((r) => r.grade), 0) : 0;
+  const maxGrade = alert.report ? Math.max(...alert.report.responses.map((r: { grade: number }) => r.grade), 0) : 0;
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
@@ -271,8 +271,8 @@ export default async function AlertDetailPage({ params }: { params: { id: string
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {alert.report.responses.map((r, i) => {
-                const sorted = [...alert.report!.responses].sort((a, b) => b.grade - a.grade);
+              {alert.report.responses.map((r: { grade: number; term_name: string; body_system: string | null }, i: number) => {
+                const sorted = [...alert.report!.responses].sort((a: { grade: number }, b: { grade: number }) => b.grade - a.grade);
                 return (
                   <div key={i} style={{
                     display: "flex",

@@ -280,7 +280,7 @@ class _PolicyCard extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: Neutrals.hint.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(Radii.xs),
+                      borderRadius: BorderRadius.circular(Radii.sm),
                     ),
                     child: Text(
                       'Inactive',
@@ -348,7 +348,7 @@ class _InfoBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(Radii.xs),
+        borderRadius: BorderRadius.circular(Radii.sm),
       ),
       child: Text(
         label,

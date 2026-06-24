@@ -53,6 +53,12 @@ Package.resolved
 Thumbs.db
 *.log
 *.tmp
+
+# ── Generated / dev output ────────────────────────────────────
+*.dev-output.txt
+*.dev-log.txt
+*.flutter-log.txt
+next-env.d.ts
 .idea/
 .vscode/settings.json
 coverage/

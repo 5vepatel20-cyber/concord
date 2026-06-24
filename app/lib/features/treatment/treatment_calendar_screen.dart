@@ -505,7 +505,7 @@ class _EventCard extends StatelessWidget {
                         color: _statusColor(
                           event.status,
                         ).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(Radii.xs),
+                        borderRadius: BorderRadius.circular(Radii.sm),
                       ),
                       child: Text(
                         _statusLabel(event.status),
@@ -545,13 +545,13 @@ class _EventCard extends StatelessWidget {
   IconData _iconForType(String type) {
     switch (type) {
       case 'infusion':
-        return Icons.iv_bag;
+        return Icons.medication;
       case 'appointment':
         return Icons.calendar_today;
       case 'lab':
         return Icons.science_outlined;
       case 'scan':
-        return Icons.radiology;
+        return Icons.health_and_safety;
       case 'surgery':
         return Icons.local_hospital;
       default:
@@ -850,7 +850,7 @@ class _Tag extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: 1),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(Radii.xs),
+        borderRadius: BorderRadius.circular(Radii.sm),
       ),
       child: Text(
         label,

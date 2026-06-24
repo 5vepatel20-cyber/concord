@@ -186,7 +186,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: t.textTheme.bodySmall?.copyWith(
-                          color: c.hasUnread ? Neutrals.dark : Neutrals.slate,
+                          color: c.hasUnread ? Neutrals.ink : Neutrals.slate,
                         ),
                       ),
                       trailing: c.lastMessage?['created_at'] != null

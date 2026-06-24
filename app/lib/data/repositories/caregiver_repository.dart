@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
-import '../data/supabase/supabase_provider.dart';
+import '../../data/supabase/supabase_provider.dart';
 
 final caregiverRepositoryProvider = Provider<CaregiverRepository>((ref) {
   return CaregiverRepository(ref);

@@ -323,7 +323,7 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
                                       decoration: BoxDecoration(
                                         color: BrandColors.concordBlueTint,
                                         borderRadius: BorderRadius.circular(
-                                          Radii.xs,
+                                          Radii.sm,
                                         ),
                                       ),
                                       child: Text(

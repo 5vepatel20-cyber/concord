@@ -14,8 +14,7 @@ class ChemoRegimenScreen extends ConsumerStatefulWidget {
   const ChemoRegimenScreen({super.key});
 
   @override
-  ConsumerState<ChemoRegimenScreen> createState() =>
-      _ChemoRegimenScreenState();
+  ConsumerState<ChemoRegimenScreen> createState() => _ChemoRegimenScreenState();
 }
 
 class _ChemoRegimenScreenState extends ConsumerState<ChemoRegimenScreen> {
@@ -85,16 +84,24 @@ class _ChemoRegimenScreenState extends ConsumerState<ChemoRegimenScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.error_outline,
-                          size: 48, color: SeverityColors.severe),
+                      Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: SeverityColors.severe,
+                      ),
                       const SizedBox(height: Space.s3),
-                      Text(_error!,
-                          textAlign: TextAlign.center,
-                          style: t.textTheme.bodyMedium
-                              ?.copyWith(color: SeverityColors.severe)),
+                      Text(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: t.textTheme.bodyMedium?.copyWith(
+                          color: SeverityColors.severe,
+                        ),
+                      ),
                       const SizedBox(height: Space.s3),
                       FilledButton(
-                          onPressed: _load, child: const Text('Retry')),
+                        onPressed: _load,
+                        child: const Text('Retry'),
+                      ),
                     ],
                   ),
                 ),
@@ -106,18 +113,22 @@ class _ChemoRegimenScreenState extends ConsumerState<ChemoRegimenScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.iv_bag, size: 64, color: Neutrals.hint),
+                      Icon(Icons.medication, size: 64, color: Neutrals.hint),
                       const SizedBox(height: Space.s3),
-                      Text('No chemo regimens yet.',
-                          style: t.textTheme.titleSmall
-                              ?.copyWith(color: Neutrals.slate)),
+                      Text(
+                        'No chemo regimens yet.',
+                        style: t.textTheme.titleSmall?.copyWith(
+                          color: Neutrals.slate,
+                        ),
+                      ),
                       const SizedBox(height: Space.s1),
                       Text(
                         'Create a regimen template to generate infusion\n'
                         'events on your treatment calendar.',
                         textAlign: TextAlign.center,
-                        style: t.textTheme.bodySmall
-                            ?.copyWith(color: Neutrals.hint),
+                        style: t.textTheme.bodySmall?.copyWith(
+                          color: Neutrals.hint,
+                        ),
                       ),
                     ],
                   ),
@@ -125,13 +136,19 @@ class _ChemoRegimenScreenState extends ConsumerState<ChemoRegimenScreen> {
               )
             : ListView(
                 padding: const EdgeInsets.fromLTRB(
-                    Space.s5, Space.s3, Space.s5, Space.s10),
+                  Space.s5,
+                  Space.s3,
+                  Space.s5,
+                  Space.s10,
+                ),
                 children: _regimens
-                    .map((r) => _RegimenCard(
-                          regimen: r,
-                          onDelete: () => _deleteRegimen(r.id),
-                          onStart: () => _showStartDialog(r),
-                        ))
+                    .map(
+                      (r) => _RegimenCard(
+                        regimen: r,
+                        onDelete: () => _deleteRegimen(r.id),
+                        onStart: () => _showStartDialog(r),
+                      ),
+                    )
                     .toList(),
               ),
       ),
@@ -144,16 +161,20 @@ class _ChemoRegimenScreenState extends ConsumerState<ChemoRegimenScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Delete regimen?'),
         content: const Text(
-            'This will not delete already-generated calendar events.'),
+          'This will not delete already-generated calendar events.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: FilledButton.styleFrom(
-                  backgroundColor: SeverityColors.severe),
-              child: const Text('Delete')),
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: SeverityColors.severe,
+            ),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
@@ -173,8 +194,9 @@ class _ChemoRegimenScreenState extends ConsumerState<ChemoRegimenScreen> {
       if (mounted) _load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -199,11 +221,13 @@ class _ChemoRegimenScreenState extends ConsumerState<ChemoRegimenScreen> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Generate events')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Generate events'),
+          ),
         ],
       ),
     );
@@ -216,8 +240,7 @@ class _ChemoRegimenScreenState extends ConsumerState<ChemoRegimenScreen> {
 
       final res = await http
           .post(
-            Uri.parse(
-                '$apiBase/api/treatment/regimens/${regimen.id}/generate'),
+            Uri.parse('$apiBase/api/treatment/regimens/${regimen.id}/generate'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer ${session.accessToken}',
@@ -230,19 +253,22 @@ class _ChemoRegimenScreenState extends ConsumerState<ChemoRegimenScreen> {
 
       if (!mounted) return;
       if (res.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Generated ${regimen.totalCycles} cycle events'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Generated ${regimen.totalCycles} cycle events'),
+          ),
+        );
       } else {
         final msg = (jsonDecode(res.body) as Map<String, dynamic>)['error'];
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Failed: ${msg ?? res.statusCode}'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: ${msg ?? res.statusCode}')),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -286,24 +312,33 @@ class _RegimenCard extends StatelessWidget {
                     color: const Color(0xFF7B61FF).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(Radii.md),
                   ),
-                  child: const Icon(Icons.iv_bag,
-                      color: Color(0xFF7B61FF), size: 24),
+                  child: const Icon(
+                    Icons.medication,
+                    color: Color(0xFF7B61FF),
+                    size: 24,
+                  ),
                 ),
                 const SizedBox(width: Space.s3),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(regimen.name,
-                          style: t.textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w600)),
+                      Text(
+                        regimen.name,
+                        style: t.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       if (regimen.description != null) ...[
                         const SizedBox(height: 2),
-                        Text(regimen.description!,
-                            style: t.textTheme.bodySmall
-                                ?.copyWith(color: Neutrals.slate),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis),
+                        Text(
+                          regimen.description!,
+                          style: t.textTheme.bodySmall?.copyWith(
+                            color: Neutrals.slate,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ],
                     ],
                   ),
@@ -315,9 +350,12 @@ class _RegimenCard extends StatelessWidget {
                   },
                   itemBuilder: (_) => [
                     const PopupMenuItem(
-                        value: 'delete',
-                        child: Text('Delete',
-                            style: TextStyle(color: SeverityColors.severe))),
+                      value: 'delete',
+                      child: Text(
+                        'Delete',
+                        style: TextStyle(color: SeverityColors.severe),
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -326,13 +364,15 @@ class _RegimenCard extends StatelessWidget {
             Row(
               children: [
                 _InfoChip(
-                    icon: Icons.repeat,
-                    label:
-                        '${regimen.cycleLengthDays}d on${regimen.restDays > 0 ? ', ${regimen.restDays}d rest' : ''}'),
+                  icon: Icons.repeat,
+                  label:
+                      '${regimen.cycleLengthDays}d on${regimen.restDays > 0 ? ', ${regimen.restDays}d rest' : ''}',
+                ),
                 const SizedBox(width: Space.s2),
                 _InfoChip(
-                    icon: Icons.loop,
-                    label: '${regimen.totalCycles} cycles'),
+                  icon: Icons.loop,
+                  label: '${regimen.totalCycles} cycles',
+                ),
               ],
             ),
             if (regimen.medications.isNotEmpty) ...[
@@ -341,13 +381,16 @@ class _RegimenCard extends StatelessWidget {
                 spacing: Space.s1,
                 runSpacing: Space.s1,
                 children: regimen.medications
-                    .map((m) => Chip(
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: VisualDensity.compact,
-                          label: Text(m.medicationName,
-                              style: const TextStyle(fontSize: 11)),
-                        ))
+                    .map(
+                      (m) => Chip(
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                        label: Text(
+                          m.medicationName,
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                    )
                     .toList(),
               ),
             ],
@@ -378,7 +421,7 @@ class _InfoChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: 2),
       decoration: BoxDecoration(
-        color: Neutrals.background,
+        color: Neutrals.mist,
         borderRadius: BorderRadius.circular(Radii.sm),
       ),
       child: Row(
@@ -386,8 +429,10 @@ class _InfoChip extends StatelessWidget {
         children: [
           Icon(icon, size: 12, color: Neutrals.slate),
           const SizedBox(width: 4),
-          Text(label,
-              style: t.textTheme.labelSmall?.copyWith(color: Neutrals.slate)),
+          Text(
+            label,
+            style: t.textTheme.labelSmall?.copyWith(color: Neutrals.slate),
+          ),
         ],
       ),
     );
@@ -459,10 +504,11 @@ class _CreateRegimenDialogState extends ConsumerState<_CreateRegimenDialog> {
       } else {
         final msg =
             (jsonDecode(res.body) as Map<String, dynamic>)['error']
-                    as Map<String, dynamic>? ??
-                {};
+                as Map<String, dynamic>? ??
+            {};
         setState(
-            () => _error = (msg['message'] as String?) ?? 'Failed to create');
+          () => _error = (msg['message'] as String?) ?? 'Failed to create',
+        );
       }
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
@@ -529,15 +575,18 @@ class _CreateRegimenDialogState extends ConsumerState<_CreateRegimenDialog> {
               ),
               const SizedBox(height: Space.s2),
               Text(
-                'This regimen will generate ${_totalCycles × (_cycleLength)} '
+                'This regimen will generate ${_totalCycles * (_cycleLength)} '
                 'treatment days over ${_totalCycles} cycles.',
                 style: t.textTheme.bodySmall?.copyWith(color: Neutrals.hint),
               ),
               if (_error != null) ...[
                 const SizedBox(height: Space.s2),
-                Text(_error!,
-                    style: t.textTheme.bodySmall
-                        ?.copyWith(color: SeverityColors.severe)),
+                Text(
+                  _error!,
+                  style: t.textTheme.bodySmall?.copyWith(
+                    color: SeverityColors.severe,
+                  ),
+                ),
               ],
             ],
           ),
@@ -578,11 +627,12 @@ class _NumberField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: Theme.of(context)
-                .textTheme
-                .labelSmall
-                ?.copyWith(color: Neutrals.slate)),
+        Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: Neutrals.slate),
+        ),
         const SizedBox(height: Space.s1),
         Row(
           children: [
@@ -590,9 +640,12 @@ class _NumberField extends StatelessWidget {
               icon: const Icon(Icons.remove_circle_outline, size: 20),
               onPressed: value > 1 ? () => onChanged(value - 1) : null,
             ),
-            Text('$value',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600)),
+            Text(
+              '$value',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
             IconButton(
               icon: const Icon(Icons.add_circle_outline, size: 20),
               onPressed: () => onChanged(value + 1),

@@ -284,7 +284,7 @@ class _MessageThreadScreenState extends ConsumerState<MessageThreadScreen> {
                     padding: const EdgeInsets.all(Space.s3),
                     decoration: BoxDecoration(
                       color: Theme.of(context).scaffoldBackgroundColor,
-                      border: Border(top: BorderSide(color: Neutrals.border)),
+                      border: Border(top: BorderSide(color: Neutrals.hairline)),
                     ),
                     child: Row(
                       children: [
@@ -349,15 +349,15 @@ class _MessageBubble extends StatelessWidget {
               ),
               padding: const EdgeInsets.all(Space.s3),
               decoration: BoxDecoration(
-                color: isMe ? BrandColors.concordBlue : Neutrals.background,
+                color: isMe ? BrandColors.concordBlue : Neutrals.mist,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(Radii.md),
                   topRight: const Radius.circular(Radii.md),
                   bottomLeft: isMe
                       ? const Radius.circular(Radii.md)
-                      : const Radius.circular(Radii.xs),
+                      : const Radius.circular(Radii.sm),
                   bottomRight: isMe
-                      ? const Radius.circular(Radii.xs)
+                      ? const Radius.circular(Radii.sm)
                       : const Radius.circular(Radii.md),
                 ),
               ),
@@ -366,9 +366,7 @@ class _MessageBubble extends StatelessWidget {
                 children: [
                   Text(
                     message.content,
-                    style: TextStyle(
-                      color: isMe ? Colors.white : Neutrals.dark,
-                    ),
+                    style: TextStyle(color: isMe ? Colors.white : Neutrals.ink),
                   ),
                   const SizedBox(height: Space.s1),
                   Text(

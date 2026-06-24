@@ -1,6 +1,6 @@
 import 'package:home_widget/home_widget.dart';
 
-import '../storage/database.dart';
+import '../sync/sync_service.dart';
 
 /// Stateless service that pushes data to the home-screen widget via
 /// HomeWidget.  The native side (SymptomWidgetProvider on Android /
