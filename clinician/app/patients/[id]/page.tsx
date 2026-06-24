@@ -157,6 +157,58 @@ async function fetchOpenAlerts(patientId: string): Promise<OpenAlertSummary[]> {
   return (data ?? []) as OpenAlertSummary[];
 }
 
+interface ReportSummary {
+  id: string;
+  created_at: string;
+  kind: string;
+  date_range: string;
+  narrative: string | null;
+  worst_episodes: { term_name: string; grade: number; count: number }[];
+  overall_adherence: number | null;
+  new_or_worsening: { term_name: string; direction: string }[];
+  vitals: { date: string; weight_kg: number | null; bp_sys_avg: number | null; bp_dia_avg: number | null }[];
+}
+
+async function fetchReports(patientId: string): Promise<ReportSummary[]> {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("report")
+    .select("id, created_at, kind, date_range, narrative, structured_payload")
+    .eq("patient_id", patientId)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (!data) return [];
+
+  return (data as any[]).map((r) => {
+    const p = r.structured_payload ?? {};
+    return {
+      id: r.id,
+      created_at: r.created_at,
+      kind: r.kind,
+      date_range: r.date_range ?? "",
+      narrative: r.narrative ?? p.narrative ?? null,
+      worst_episodes: (p.worst_episodes ?? []).map((w: any) => ({
+        term_name: w.term_name,
+        grade: w.grade,
+        count: w.count,
+      })),
+      overall_adherence: p.medication_adherence?.overall_pct ?? null,
+      new_or_worsening: (p.new_or_worsening ?? []).map((n: any) => ({
+        term_name: n.term_name,
+        direction: n.direction,
+      })),
+      vitals: (p.vitals ?? []).slice(0, 7).map((v: any) => ({
+        date: v.date,
+        weight_kg: v.weight_kg ?? null,
+        bp_sys_avg: v.bp_sys_avg ?? null,
+        bp_dia_avg: v.bp_dia_avg ?? null,
+      })),
+    };
+  });
+}
+
 async function ensureConversation(patientId: string) {
   "use server";
 
@@ -203,6 +255,7 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
 
   const vitals = await fetchVitals(params.id);
   const openAlerts = await fetchOpenAlerts(params.id);
+  const reports = await fetchReports(params.id);
 
   const gradeColors: Record<string, string> = {
     "0": "var(--stable)",
@@ -478,6 +531,98 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
                       );
                     })()}
                   </svg>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {reports.length > 0 && (
+          <>
+            <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 12, marginTop: 32 }}>
+              Patient Reports
+            </h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {reports.map((r) => (
+                <div key={r.id} style={{
+                  background: "var(--surface)",
+                  borderRadius: 14,
+                  border: "1px solid var(--hairline)",
+                  padding: 16,
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>
+                        {r.kind === "visit_prep" ? "Visit Prep" : r.kind === "interval_summary" ? "Interval Summary" : "Shared Report"}
+                      </div>
+                      <div style={{ fontSize: 13, color: "var(--hint)", marginTop: 2 }}>
+                        {new Date(r.created_at).toLocaleDateString()} &middot; {r.date_range}
+                      </div>
+                    </div>
+                    {r.overall_adherence != null && (
+                      <div style={{
+                        padding: "4px 12px",
+                        borderRadius: 6,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        background: r.overall_adherence >= 80 ? "var(--stable-tint)" : r.overall_adherence >= 50 ? "#FBE6DD" : "#FDEAEA",
+                        color: r.overall_adherence >= 80 ? "var(--stable)" : r.overall_adherence >= 50 ? "var(--warn)" : "var(--severe)",
+                      }}>
+                        {r.overall_adherence}% adherence
+                      </div>
+                    )}
+                  </div>
+
+                  {r.narrative && (
+                    <p style={{ fontSize: 14, color: "var(--body)", lineHeight: 1.6, marginBottom: 12 }}>
+                      {r.narrative}
+                    </p>
+                  )}
+
+                  <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+                    {r.worst_episodes.length > 0 && (
+                      <div style={{ minWidth: 160 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--slate)", textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 6 }}>
+                          Worst Episodes
+                        </div>
+                        {r.worst_episodes.slice(0, 3).map((w) => (
+                          <div key={w.term_name} style={{ fontSize: 13, color: "var(--body)", marginBottom: 2 }}>
+                            {w.term_name} &mdash; avg grade {w.grade.toFixed(1)} ({w.count}x)
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {r.new_or_worsening.length > 0 && (
+                      <div style={{ minWidth: 160 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--slate)", textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 6 }}>
+                          New / Worsening
+                        </div>
+                        {r.new_or_worsening.slice(0, 3).map((n) => (
+                          <div key={n.term_name} style={{
+                            fontSize: 13,
+                            color: n.direction === "new" ? "var(--warn)" : "var(--severe)",
+                            marginBottom: 2,
+                          }}>
+                            {n.term_name} ({n.direction})
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {r.vitals.length > 0 && (
+                      <div style={{ minWidth: 160 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--slate)", textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 6 }}>
+                          Latest Vitals
+                        </div>
+                        {r.vitals.slice(0, 3).map((v) => (
+                          <div key={v.date} style={{ fontSize: 13, color: "var(--body)", marginBottom: 2 }}>
+                            {v.date.slice(5)} &middot; {v.weight_kg ? `${v.weight_kg}kg` : ""}{v.weight_kg && v.bp_sys_avg ? " " : ""}{v.bp_sys_avg ? `${v.bp_sys_avg}/${v.bp_dia_avg ?? "—"}` : ""}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
