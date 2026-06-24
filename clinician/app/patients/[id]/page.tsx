@@ -137,11 +137,72 @@ async function fetchPatient(id: string): Promise<PatientDetail | null> {
   };
 }
 
+interface OpenAlertSummary {
+  id: string;
+  severity_level: string;
+  created_at: string;
+}
+
+async function fetchOpenAlerts(patientId: string): Promise<OpenAlertSummary[]> {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("symptom_alert")
+    .select("id, severity_level, created_at")
+    .eq("patient_id", patientId)
+    .eq("status", "open")
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  return (data ?? []) as OpenAlertSummary[];
+}
+
+async function ensureConversation(patientId: string) {
+  "use server";
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: myConvs } = await supabase
+    .from("conversation_participant")
+    .select("conversation_id")
+    .eq("user_id", user.id);
+
+  if (myConvs && myConvs.length > 0) {
+    const myConvIds = myConvs.map((c: any) => c.conversation_id);
+    const { data: existing } = await supabase
+      .from("conversation_participant")
+      .select("conversation_id")
+      .in("conversation_id", myConvIds)
+      .eq("user_id", patientId)
+      .maybeSingle();
+
+    if (existing) return existing.conversation_id;
+  }
+
+  const { data: conv } = await supabase
+    .from("conversation")
+    .insert({})
+    .select("id")
+    .single();
+
+  if (!conv) return null;
+
+  await supabase.from("conversation_participant").insert([
+    { conversation_id: conv.id, user_id: user.id },
+    { conversation_id: conv.id, user_id: patientId },
+  ]);
+
+  return conv.id;
+}
+
 export default async function PatientDetailPage({ params }: { params: { id: string } }) {
   const patient = await fetchPatient(params.id);
   if (!patient) notFound();
 
   const vitals = await fetchVitals(params.id);
+  const openAlerts = await fetchOpenAlerts(params.id);
 
   const gradeColors: Record<string, string> = {
     "0": "var(--stable)",
@@ -157,11 +218,67 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
         <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 4 }}>
           {patient.full_name}
         </h1>
-        <p style={{ fontSize: 15, color: "var(--slate)", marginBottom: 32 }}>
+        <p style={{ fontSize: 15, color: "var(--slate)", marginBottom: 16 }}>
           {patient.primary_diagnosis}
           {patient.cancer_stage ? ` · Stage ${patient.cancer_stage}` : ""}
           {patient.diagnosis_date ? ` · Diagnosed ${patient.diagnosis_date}` : ""}
         </p>
+
+        {openAlerts.length > 0 && (
+          <div style={{
+            background: "#FDEAEA",
+            border: "1px solid #E5484D",
+            borderRadius: 10,
+            padding: "12px 16px",
+            marginBottom: 24,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}>
+            <span style={{ fontSize: 18, color: "#E5484D" }}>!</span>
+            <div style={{ flex: 1, fontSize: 14, color: "#CD2B31" }}>
+              <strong>{openAlerts.length} open {openAlerts.length === 1 ? "alert" : "alerts"}</strong>
+              {openAlerts.length > 0 && (
+                <span> &mdash; {openAlerts.filter((a: any) => a.severity_level === "emergency").length > 0
+                  ? `${openAlerts.filter((a: any) => a.severity_level === "emergency").length} emergency`
+                  : ""}{openAlerts.filter((a: any) => a.severity_level === "urgent").length > 0
+                    ? `${openAlerts.filter((a: any) => a.severity_level === "emergency").length > 0 ? ", " : ""}${openAlerts.filter((a: any) => a.severity_level === "urgent").length} urgent` : ""}</span>
+              )}
+            </div>
+            <a href="/alerts" style={{
+              padding: "6px 14px",
+              fontSize: 13,
+              fontWeight: 500,
+              background: "var(--surface)",
+              color: "var(--concord-blue)",
+              border: "1px solid var(--hairline)",
+              borderRadius: 8,
+              textDecoration: "none",
+            }}>
+              View All
+            </a>
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+          <form action={ensureConversation.bind(null, params.id)}>
+            <button
+              type="submit"
+              style={{
+                padding: "8px 16px",
+                fontSize: 13,
+                fontWeight: 500,
+                background: "var(--concord-blue)",
+                color: "var(--surface)",
+                border: "none",
+                borderRadius: 8,
+                cursor: "pointer",
+              }}
+            >
+              Message Patient
+            </button>
+          </form>
+        </div>
 
         <h2 style={{ fontSize: 17, fontWeight: 600, marginBottom: 12 }}>
           Symptom Trend
