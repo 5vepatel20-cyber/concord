@@ -446,6 +446,91 @@ async function ensureConversation(patientId: string) {
   return conv.id;
 }
 
+interface WorseningItem {
+  term_name: string;
+  direction: string;
+  baseline_avg_grade: number;
+  current_avg_grade: number;
+  delta: number;
+}
+
+async function fetchWorsening(patientId: string): Promise<WorseningItem[]> {
+  "use server";
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data: profile } = await supabase
+    .from("user")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "clinician" && profile?.role !== "admin") return [];
+
+  const DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const currentStart = new Date(now - DAYS_MS).toISOString();
+  const priorStart = new Date(now - 2 * DAYS_MS).toISOString();
+
+  const { data: priorSymptoms } = await supabase
+    .from("symptom_response")
+    .select("composite_grade, term:symptom_term(pro_ctcae_code, display_name), report:symptom_report!inner(reported_at, patient_id)")
+    .eq("report.patient_id", patientId)
+    .gte("report.reported_at", priorStart)
+    .lt("report.reported_at", currentStart);
+
+  const { data: currentSymptoms } = await supabase
+    .from("symptom_response")
+    .select("composite_grade, term:symptom_term(pro_ctcae_code, display_name), report:symptom_report!inner(reported_at, patient_id)")
+    .eq("report.patient_id", patientId)
+    .gte("report.reported_at", currentStart);
+
+  const priorMap = new Map<string, { sum: number; count: number; name: string }>();
+  for (const sr of (priorSymptoms as any[]) ?? []) {
+    const term = Array.isArray(sr.term) ? sr.term[0] : sr.term;
+    if (!term) continue;
+    const acc = priorMap.get(term.pro_ctcae_code) ?? { sum: 0, count: 0, name: term.display_name };
+    acc.sum += sr.composite_grade ?? 0;
+    acc.count++;
+    priorMap.set(term.pro_ctcae_code, acc);
+  }
+
+  const currentMap = new Map<string, { sum: number; count: number; name: string }>();
+  for (const sr of (currentSymptoms as any[]) ?? []) {
+    const term = Array.isArray(sr.term) ? sr.term[0] : sr.term;
+    if (!term) continue;
+    const acc = currentMap.get(term.pro_ctcae_code) ?? { sum: 0, count: 0, name: term.display_name };
+    acc.sum += sr.composite_grade ?? 0;
+    acc.count++;
+    currentMap.set(term.pro_ctcae_code, acc);
+  }
+
+  const allCodes = new Set([...priorMap.keys(), ...currentMap.keys()]);
+  const results: WorseningItem[] = [];
+
+  for (const code of allCodes) {
+    const prior = priorMap.get(code);
+    const current = currentMap.get(code);
+    const currentAvg = current ? current.sum / current.count : 0;
+    const priorAvg = prior ? prior.sum / prior.count : 0;
+    const delta = currentAvg - priorAvg;
+
+    const direction = !prior ? "new" : delta >= 1 ? "worsened" : delta <= -1 ? "improved" : "stable";
+
+    results.push({
+      term_name: current?.name ?? prior?.name ?? code,
+      direction,
+      baseline_avg_grade: Math.round(priorAvg * 10) / 10,
+      current_avg_grade: Math.round(currentAvg * 10) / 10,
+      delta: Math.round(delta * 10) / 10,
+    });
+  }
+
+  return results.filter((r) => r.direction === "worsened" || r.direction === "new").sort((a, b) => b.delta - a.delta);
+}
+
 async function generateReport(patientId: string) {
   "use server";
 
@@ -602,6 +687,7 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
   const compliance = await fetchCompliance(params.id);
   const medsWithAdherence = await fetchMedicationAdherence(params.id);
   const timeline = await fetchTimeline(params.id);
+  const worsening = await fetchWorsening(params.id);
 
   const gradeColors: Record<string, string> = {
     "0": "var(--stable)",
@@ -678,6 +764,57 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
             </button>
           </form>
         </div>
+
+        {worsening.length > 0 && (
+          <div style={{
+            background: "#FBE6DD",
+            border: "1px solid #F2683C",
+            borderRadius: 14,
+            padding: "14px 16px",
+            marginBottom: 24,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <span style={{ fontSize: 16, color: "#F2683C", fontWeight: 700 }}>&#9650;</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: "#CD2B31" }}>
+                {worsening.length} worsening {worsening.length === 1 ? "symptom" : "symptoms"} detected (7-day baseline)
+              </span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {worsening.map((w, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{
+                      display: "inline-block",
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      background: w.direction === "new" ? "var(--warn)" : "var(--severe)",
+                    }} />
+                    <span style={{ color: "var(--ink)", fontWeight: 500 }}>{w.term_name}</span>
+                    <span style={{
+                      padding: "1px 6px",
+                      borderRadius: 4,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      background: w.direction === "new" ? "var(--warn-tint)" : "#FDEAEA",
+                      color: w.direction === "new" ? "var(--warn)" : "var(--severe)",
+                      textTransform: "uppercase",
+                    }}>
+                      {w.direction}
+                    </span>
+                  </div>
+                  <span style={{ color: "var(--slate)" }}>
+                    {w.direction === "new" ? (
+                      <>new &middot; avg grade {w.current_avg_grade}</>
+                    ) : (
+                      <>{w.baseline_avg_grade} &rarr; {w.current_avg_grade} (&Delta;+{w.delta})</>
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div style={{
           background: "var(--surface)",
