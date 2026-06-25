@@ -23,6 +23,7 @@ import '../../data/supabase/supabase_provider.dart';
 import '../../theme/tokens.dart';
 import '../../data/repositories/report_repository.dart';
 import '../../theme/typography.dart';
+import '../symptoms/quick_log_screen.dart';
 import '../symptoms/quick_log_widget.dart';
 import '../symptoms/symptom_history_screen.dart';
 import '../treatment/treatment_calendar_screen.dart';
@@ -89,11 +90,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             children: [
               Text('$greeting, $firstName', style: t.textTheme.headlineMedium),
+              const SizedBox(height: Space.s3),
+              _QuickActionsRow(),
               const SizedBox(height: Space.s2),
-              Text(
-                'How are you feeling today?',
-                style: t.textTheme.bodyLarge?.copyWith(color: Neutrals.slate),
-              ),
+              const _PendingSyncBadge(),
               const SizedBox(height: Space.s2),
               const _WorseningCard(),
               const SizedBox(height: Space.s2),
@@ -776,6 +776,91 @@ class _AtlasNudgeCard extends ConsumerWidget {
               Icon(Icons.chevron_right, color: Neutrals.slate),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Quick action buttons for common tasks — Log, Report, Atlas, Calendar.
+class _QuickActionsRow extends StatelessWidget {
+  _QuickActionsRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    return Row(
+      children: [
+        Expanded(
+          child: _ActionButton(
+            icon: Icons.add_circle_outline,
+            label: 'Log',
+            onTap: () => QuickLogScreen.show(context),
+          ),
+        ),
+        const SizedBox(width: Space.s2),
+        Expanded(
+          child: _ActionButton(
+            icon: Icons.summarize_outlined,
+            label: 'Report',
+            onTap: () => context.push('/report/generate'),
+          ),
+        ),
+        const SizedBox(width: Space.s2),
+        Expanded(
+          child: _ActionButton(
+            icon: Icons.auto_awesome_outlined,
+            label: 'Atlas',
+            onTap: () => context.go('/atlas'),
+          ),
+        ),
+        const SizedBox(width: Space.s2),
+        Expanded(
+          child: _ActionButton(
+            icon: Icons.calendar_month_outlined,
+            label: 'Schedule',
+            onTap: () => context.push('/treatment/calendar'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(Radii.md),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: Space.s3),
+        decoration: BoxDecoration(
+          color: t.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(Radii.md),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 24, color: t.colorScheme.primary),
+            const SizedBox(height: Space.s1),
+            Text(
+              label,
+              style: t.textTheme.labelMedium?.copyWith(
+                color: t.colorScheme.onSurface,
+              ),
+            ),
+          ],
         ),
       ),
     );
