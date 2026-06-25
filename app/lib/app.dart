@@ -37,6 +37,7 @@ import 'features/log/log_landing_screen.dart';
 import 'features/medications/medications_screen.dart';
 import 'features/medications/add_medication_screen.dart';
 import 'features/medications/adherence_dashboard_screen.dart';
+import 'features/medications/medication_detail_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/onboarding/condition_picker_screen.dart';
 import 'features/onboarding/diagnosis_detail_screen.dart';
@@ -187,6 +188,12 @@ GoRouter _buildRouter(WidgetRef ref) {
       GoRoute(
         path: '/medications/adherence',
         builder: (_, _) => const AdherenceDashboardScreen(),
+      ),
+      GoRoute(
+        path: '/medications/:id',
+        builder: (_, state) => MedicationDetailScreen(
+          medicationId: state.pathParameters['id'] ?? '',
+        ),
       ),
 
       // Symptom history (SYM-07). Full-screen push from Home.

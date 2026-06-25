@@ -56,21 +56,20 @@ class MedicationRepository {
       final apiBase = _ref.read(apiBaseUrlProvider);
       final session = _ref.read(supabaseClientProvider).auth.currentSession;
       if (session == null) {
-        return const Err(AppError(
-          kind: AppErrorKind.unauthorized,
-          code: 'no_session',
-          message: 'Not signed in',
-        ));
+        return const Err(
+          AppError(
+            kind: AppErrorKind.unauthorized,
+            code: 'no_session',
+            message: 'Not signed in',
+          ),
+        );
       }
       final uri = Uri.parse(
         '$apiBase/api/medications'
         '?active=${onlyActive ? 'true' : 'false'}',
       );
       final response = await http
-          .get(
-            uri,
-            headers: {'Authorization': 'Bearer ${session.accessToken}'},
-          )
+          .get(uri, headers: {'Authorization': 'Bearer ${session.accessToken}'})
           .timeout(const Duration(seconds: 15));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw HttpException(
@@ -90,11 +89,7 @@ class MedicationRepository {
         await db.customStatement(
           'INSERT OR REPLACE INTO cached_medications '
           '(server_id, payload_json, updated_at) VALUES (?, ?, ?)',
-          [
-            m.id,
-            jsonEncode(m.toJson()),
-            clock.nowUtc().millisecondsSinceEpoch,
-          ],
+          [m.id, jsonEncode(m.toJson()), clock.nowUtc().millisecondsSinceEpoch],
         );
       }
       return Ok(meds);
@@ -104,9 +99,11 @@ class MedicationRepository {
         final db = await _ref.read(appDatabaseProvider.future);
         final cached = await db.cachedMedications();
         final meds = cached
-            .map((c) => Medication.fromJson(
-                  jsonDecode(c.payloadJson) as Map<String, dynamic>,
-                ))
+            .map(
+              (c) => Medication.fromJson(
+                jsonDecode(c.payloadJson) as Map<String, dynamic>,
+              ),
+            )
             .where((m) => onlyActive ? m.active : true)
             .toList();
         if (meds.isNotEmpty) {
@@ -115,12 +112,14 @@ class MedicationRepository {
       } catch (_) {
         // fall through to the error
       }
-      return Err(AppError(
-        kind: AppErrorKind.network,
-        code: 'fetch_failed',
-        message: 'Could not load medications',
-        cause: e,
-      ));
+      return Err(
+        AppError(
+          kind: AppErrorKind.network,
+          code: 'fetch_failed',
+          message: 'Could not load medications',
+          cause: e,
+        ),
+      );
     }
   }
 
@@ -131,9 +130,11 @@ class MedicationRepository {
       final db = await _ref.read(appDatabaseProvider.future);
       final cached = await db.cachedMedications();
       return cached
-          .map((c) => Medication.fromJson(
-                jsonDecode(c.payloadJson) as Map<String, dynamic>,
-              ))
+          .map(
+            (c) => Medication.fromJson(
+              jsonDecode(c.payloadJson) as Map<String, dynamic>,
+            ),
+          )
           .toList();
     } catch (_) {
       return const [];
@@ -181,12 +182,14 @@ class MedicationRepository {
         return Ok(MedicationDraftReceipt(localId: localId));
       }
     } catch (e) {
-      return Err(AppError(
-        kind: AppErrorKind.database,
-        code: 'enqueue_failed',
-        message: 'Could not save medication locally',
-        cause: e,
-      ));
+      return Err(
+        AppError(
+          kind: AppErrorKind.database,
+          code: 'enqueue_failed',
+          message: 'Could not save medication locally',
+          cause: e,
+        ),
+      );
     }
   }
 
@@ -263,22 +266,23 @@ class MedicationRepository {
           serverId: serverEvent.id,
           syncedAt: clock.nowUtc(),
         );
-        return Ok(AdherenceDraftReceipt(
-          localId: localId,
-          serverId: serverEvent.id,
-        ));
+        return Ok(
+          AdherenceDraftReceipt(localId: localId, serverId: serverEvent.id),
+        );
       } catch (_) {
         // ignore: discarded_futures
         _ref.read(syncServiceProvider).drain();
         return Ok(AdherenceDraftReceipt(localId: localId));
       }
     } catch (e) {
-      return Err(AppError(
-        kind: AppErrorKind.database,
-        code: 'enqueue_failed',
-        message: 'Could not save adherence event locally',
-        cause: e,
-      ));
+      return Err(
+        AppError(
+          kind: AppErrorKind.database,
+          code: 'enqueue_failed',
+          message: 'Could not save adherence event locally',
+          cause: e,
+        ),
+      );
     }
   }
 
@@ -320,6 +324,55 @@ class MedicationRepository {
       );
     }
     return AdherenceId(id: ev['id'] as String);
+  }
+}
+
+/// Deactivate a medication server-side (PATCH /api/medications/:id).
+/// Returns the updated Medication on success.
+Future<Result<Medication, AppError>> deactivate(String medicationId) async {
+  try {
+    final apiBase = _ref.read(apiBaseUrlProvider);
+    final session = _ref.read(supabaseClientProvider).auth.currentSession;
+    if (session == null) {
+      return const Err(
+        AppError(
+          kind: AppErrorKind.unauthorized,
+          code: 'no_session',
+          message: 'Not signed in',
+        ),
+      );
+    }
+    final uri = Uri.parse('$apiBase/api/medications/$medicationId');
+    final response = await http
+        .patch(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${session.accessToken}',
+          },
+          body: jsonEncode({'active': false}),
+        )
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw HttpException(
+        'deactivate failed: ${response.statusCode} ${response.body}',
+      );
+    }
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final med = body['medication'] as Map<String, dynamic>?;
+    if (med == null) {
+      throw const FormatException('deactivate response missing medication');
+    }
+    return Ok(Medication.fromJson(med));
+  } catch (e) {
+    return Err(
+      AppError(
+        kind: AppErrorKind.network,
+        code: 'deactivate_failed',
+        message: 'Could not deactivate medication',
+        cause: e,
+      ),
+    );
   }
 }
 

@@ -173,78 +173,87 @@ class _MedicationCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = Theme.of(context);
     final due = _isDueNow;
-    return Container(
-      padding: const EdgeInsets.all(Space.s4),
-      decoration: BoxDecoration(
-        color: t.colorScheme.surface,
-        borderRadius: BorderRadius.circular(Radii.lg),
-        border: Border.all(color: Neutrals.hairline),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                due ? Icons.notifications_active : Icons.medication_outlined,
-                color: due ? BrandColors.concordBlue : Neutrals.slate,
-              ),
-              const SizedBox(width: Space.s2),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      medication.displayName,
-                      style: t.textTheme.titleMedium,
-                    ),
-                    if (medication.dose != null || medication.unit != null) ...[
-                      const SizedBox(height: Space.s1),
-                      Text(
-                        [
-                          medication.dose,
-                          medication.unit,
-                        ].whereType<String>().join(' '),
-                        style: t.textTheme.bodyMedium?.copyWith(
-                          color: Neutrals.slate,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: Space.s3),
-          Text(
-            medication.summary,
-            style: t.textTheme.bodySmall?.copyWith(color: Neutrals.slate),
-          ),
-          if (medication.id != null && due) ...[
-            const SizedBox(height: Space.s3),
+    return GestureDetector(
+      onTap: () {
+        if (medication.id != null) {
+          context.push('/medications/${medication.id}');
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(Space.s4),
+        decoration: BoxDecoration(
+          color: t.colorScheme.surface,
+          borderRadius: BorderRadius.circular(Radii.lg),
+          border: Border.all(color: Neutrals.hairline),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () =>
-                        _log(context, ref, AdherenceStatus.skipped),
-                    icon: const Icon(Icons.close, size: 18),
-                    label: const Text('Skip'),
-                  ),
+                Icon(
+                  due ? Icons.notifications_active : Icons.medication_outlined,
+                  color: due ? BrandColors.concordBlue : Neutrals.slate,
                 ),
                 const SizedBox(width: Space.s2),
                 Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () => _log(context, ref, AdherenceStatus.taken),
-                    icon: const Icon(Icons.check, size: 18),
-                    label: const Text('Taken'),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        medication.displayName,
+                        style: t.textTheme.titleMedium,
+                      ),
+                      if (medication.dose != null ||
+                          medication.unit != null) ...[
+                        const SizedBox(height: Space.s1),
+                        Text(
+                          [
+                            medication.dose,
+                            medication.unit,
+                          ].whereType<String>().join(' '),
+                          style: t.textTheme.bodyMedium?.copyWith(
+                            color: Neutrals.slate,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: Space.s3),
+            Text(
+              medication.summary,
+              style: t.textTheme.bodySmall?.copyWith(color: Neutrals.slate),
+            ),
+            if (medication.id != null && due) ...[
+              const SizedBox(height: Space.s3),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () =>
+                          _log(context, ref, AdherenceStatus.skipped),
+                      icon: const Icon(Icons.close, size: 18),
+                      label: const Text('Skip'),
+                    ),
+                  ),
+                  const SizedBox(width: Space.s2),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () =>
+                          _log(context, ref, AdherenceStatus.taken),
+                      icon: const Icon(Icons.check, size: 18),
+                      label: const Text('Taken'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
