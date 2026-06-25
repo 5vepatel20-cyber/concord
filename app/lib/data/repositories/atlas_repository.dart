@@ -22,7 +22,8 @@ class ChatMessage {
   final bool streaming;
 
   factory ChatMessage.user(String text) => ChatMessage._('user', text, false);
-  factory ChatMessage.assistant(String text) => ChatMessage._('assistant', text, false);
+  factory ChatMessage.assistant(String text) =>
+      ChatMessage._('assistant', text, false);
   factory ChatMessage.assistantStreaming(String text) =>
       ChatMessage._('assistant', text, true);
 }
@@ -34,6 +35,7 @@ class AtlasRepository {
   Stream<SseEvent> sendMessage({
     required List<ChatMessage> history,
     String? model,
+    String? tone,
   }) {
     final supabase = _ref.read(supabaseClientProvider);
     final session = supabase.auth.currentSession;
@@ -41,14 +43,16 @@ class AtlasRepository {
       throw StateError('Cannot chat with Atlas without an auth session');
     }
     final apiBase = _ref.read(apiBaseUrlProvider);
-    return _ref.read(sseClientProvider).postJsonStream(
+    return _ref
+        .read(sseClientProvider)
+        .postJsonStream(
           url: Uri.parse('$apiBase/api/atlas/chat'),
           body: {
             'messages': [
-              for (final m in history)
-                {'role': m.role, 'content': m.text},
+              for (final m in history) {'role': m.role, 'content': m.text},
             ],
-            'model': ?model,
+            if (model != null) 'model': model,
+            if (tone != null) 'tone': tone,
           },
           token: session.accessToken,
         );

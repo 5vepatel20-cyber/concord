@@ -34,6 +34,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _scroll = ScrollController();
   bool _busy = false;
   String? _error;
+  String _tone = 'default';
   CancelToken? _cancel;
   StreamSubscription<SseEvent>? _sub;
 
@@ -79,6 +80,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         .read(atlasRepositoryProvider)
         .sendMessage(
           history: _messages.where((m) => !m.streaming).toList(growable: false),
+          tone: _tone,
         );
     _sub = stream.listen(
       (ev) {
@@ -155,6 +157,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       appBar: AppBar(
         title: const Text('Atlas'),
         actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.tune_outlined),
+            tooltip: 'Response style',
+            onSelected: (v) => setState(() => _tone = v),
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'default',
+                child: Text(
+                  _tone == 'default' ? 'Default tone  ✓' : 'Default tone',
+                ),
+              ),
+              PopupMenuItem(
+                value: 'simple',
+                child: Text(_tone == 'simple' ? 'Simple  ✓' : 'Simple'),
+              ),
+              PopupMenuItem(
+                value: 'detailed',
+                child: Text(_tone == 'detailed' ? 'Detailed  ✓' : 'Detailed'),
+              ),
+              PopupMenuItem(
+                value: 'spanish',
+                child: Text(_tone == 'spanish' ? 'Spanish  ✓' : 'Spanish'),
+              ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.event_note_outlined),
             tooltip: 'Visit Prep',

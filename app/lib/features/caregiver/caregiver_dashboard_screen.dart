@@ -1,12 +1,9 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
-import '../../data/supabase/supabase_provider.dart';
+import '../../data/repositories/caregiver_repository.dart';
 import '../../theme/tokens.dart';
 
 /// Caregiver dashboard — lists patients the current user is a caregiver for
@@ -37,16 +34,8 @@ class _CaregiverDashboardScreenState
       _error = null;
     });
     try {
-      final apiBase = ref.read(apiBaseUrlProvider);
-      final session = ref.read(supabaseClientProvider).auth.currentSession;
-      if (session == null) return;
-
-      final res = await http.get(
-        Uri.parse('$apiBase/api/caregiver/relationships'),
-        headers: {'Authorization': 'Bearer ${session.accessToken}'},
-      );
+      final body = await ref.read(caregiverRepositoryProvider).list();
       if (!mounted) return;
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
       final raw = (body['as_caregiver'] as List<dynamic>?) ?? [];
       setState(() {
         _patients = raw.cast<Map<String, dynamic>>();
