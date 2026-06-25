@@ -90,7 +90,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Space.s6,
             ),
             children: [
-              Text('$greeting, $firstName', style: t.textTheme.headlineMedium),
+              _GreetingRow(greeting: greeting, firstName: firstName),
               const SizedBox(height: Space.s3),
               _QuickActionsRow(),
               const SizedBox(height: Space.s2),
@@ -127,6 +127,105 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (now.hour < 12) return 'Good morning';
     if (now.hour < 17) return 'Good afternoon';
     return 'Good evening';
+  }
+}
+
+/// Greeting row with time-appropriate emoji and today's check-in status chip.
+class _GreetingRow extends ConsumerWidget {
+  const _GreetingRow({required this.greeting, required this.firstName});
+
+  final String greeting;
+  final String firstName;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = Theme.of(context);
+    final emoji = switch (greeting) {
+      'Good morning' => '🌅',
+      'Good afternoon' => '☀️',
+      _ => '🌙',
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('$emoji ', style: t.textTheme.headlineMedium),
+            Expanded(
+              child: Text(
+                '$greeting, $firstName',
+                style: t.textTheme.headlineMedium,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: Space.s1),
+        const _TodayCheckinChip(),
+      ],
+    );
+  }
+}
+
+/// Green "Checked in today" chip shown when the patient has logged symptoms today.
+class _TodayCheckinChip extends ConsumerStatefulWidget {
+  const _TodayCheckinChip();
+
+  @override
+  ConsumerState<_TodayCheckinChip> createState() => _TodayCheckinChipState();
+}
+
+class _TodayCheckinChipState extends ConsumerState<_TodayCheckinChip> {
+  bool _checkedIn = false;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final repo = ref.read(reportRepositoryProvider);
+      final reports = await repo.listRecent(limit: 1);
+      if (!mounted) return;
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final checkedIn = reports.any(
+        (r) => DateFormat('yyyy-MM-dd').format(r.reportedAt) == today,
+      );
+      if (mounted) setState(() => _checkedIn = checkedIn);
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading || !_checkedIn) return const SizedBox.shrink();
+    final t = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: SeverityColors.none.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(Radii.sm),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check_circle, size: 14, color: SeverityColors.none),
+          const SizedBox(width: 4),
+          Text(
+            'Checked in today',
+            style: t.textTheme.bodySmall?.copyWith(
+              color: SeverityColors.none,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
