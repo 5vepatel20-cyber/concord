@@ -1,10 +1,7 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 
-import '../../data/supabase/supabase_provider.dart';
+import '../../data/repositories/alert_repository.dart';
 import '../../theme/tokens.dart';
 
 /// Escalation policy settings (ALRT-06). Configure how alerts are routed
@@ -35,29 +32,9 @@ class _EscalationPolicyScreenState
       _error = null;
     });
     try {
-      final apiBase = ref.read(apiBaseUrlProvider);
-      final session = ref.read(supabaseClientProvider).auth.currentSession;
-      if (session == null) return;
-
-      final res = await http
-          .get(
-            Uri.parse('$apiBase/api/alerts/policies'),
-            headers: {'Authorization': 'Bearer ${session.accessToken}'},
-          )
-          .timeout(const Duration(seconds: 15));
-
+      final policies = await ref.read(alertRepositoryProvider).fetchPolicies();
       if (!mounted) return;
-      if (res.statusCode == 200) {
-        final body = jsonDecode(res.body) as Map<String, dynamic>;
-        final raw = (body['policies'] as List<dynamic>?) ?? [];
-        setState(() {
-          _policies = raw
-              .map((e) => EscalationPolicy.fromJson(e as Map<String, dynamic>))
-              .toList();
-        });
-      } else {
-        setState(() => _error = 'Failed to load (${res.statusCode})');
-      }
+      setState(() => _policies = policies);
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -67,16 +44,7 @@ class _EscalationPolicyScreenState
 
   Future<void> _deletePolicy(String id) async {
     try {
-      final apiBase = ref.read(apiBaseUrlProvider);
-      final session = ref.read(supabaseClientProvider).auth.currentSession;
-      if (session == null) return;
-
-      await http
-          .delete(
-            Uri.parse('$apiBase/api/alerts/policies/$id'),
-            headers: {'Authorization': 'Bearer ${session.accessToken}'},
-          )
-          .timeout(const Duration(seconds: 15));
+      await ref.read(alertRepositoryProvider).deletePolicy(id);
       if (mounted) _load();
     } catch (e) {
       if (mounted) {
@@ -394,11 +362,7 @@ class _AddPolicyDialogState extends ConsumerState<_AddPolicyDialog> {
     });
 
     try {
-      final apiBase = ref.read(apiBaseUrlProvider);
-      final session = ref.read(supabaseClientProvider).auth.currentSession;
-      if (session == null) return;
-
-      final body = <String, dynamic>{
+      await ref.read(alertRepositoryProvider).createPolicy({
         'name': _nameCtrl.text.trim(),
         'severity_threshold': _severity,
         'time_restriction': _timeRestriction,
@@ -407,31 +371,9 @@ class _AddPolicyDialogState extends ConsumerState<_AddPolicyDialog> {
         'priority': _priority,
         'delay_minutes': _delay,
         'active': _active,
-      };
-
-      final res = await http
-          .post(
-            Uri.parse('$apiBase/api/alerts/policies'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ${session.accessToken}',
-            },
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 15));
-
+      });
       if (!mounted) return;
-      if (res.statusCode == 201) {
-        Navigator.of(context).pop(true);
-      } else {
-        final msg =
-            (jsonDecode(res.body) as Map<String, dynamic>)['error']
-                as Map<String, dynamic>? ??
-            {};
-        setState(
-          () => _error = (msg['message'] as String?) ?? 'Failed to create',
-        );
-      }
+      Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -617,44 +559,6 @@ class _StepperField extends StatelessWidget {
           ],
         ),
       ],
-    );
-  }
-}
-
-class EscalationPolicy {
-  final String id;
-  final String name;
-  final String severityThreshold;
-  final String timeRestriction;
-  final String targetRole;
-  final String notificationChannel;
-  final int priority;
-  final int delayMinutes;
-  final bool active;
-
-  EscalationPolicy({
-    required this.id,
-    required this.name,
-    required this.severityThreshold,
-    required this.timeRestriction,
-    required this.targetRole,
-    required this.notificationChannel,
-    required this.priority,
-    required this.delayMinutes,
-    required this.active,
-  });
-
-  factory EscalationPolicy.fromJson(Map<String, dynamic> j) {
-    return EscalationPolicy(
-      id: j['id'] as String? ?? '',
-      name: j['name'] as String? ?? '',
-      severityThreshold: j['severity_threshold'] as String? ?? 'urgent',
-      timeRestriction: j['time_restriction'] as String? ?? 'always',
-      targetRole: j['target_role'] as String? ?? 'caregiver',
-      notificationChannel: j['notification_channel'] as String? ?? 'email',
-      priority: j['priority'] as int? ?? 0,
-      delayMinutes: j['delay_minutes'] as int? ?? 0,
-      active: j['active'] as bool? ?? true,
     );
   }
 }

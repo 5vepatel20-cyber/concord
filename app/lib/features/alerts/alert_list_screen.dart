@@ -1,57 +1,8 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 
-import '../../data/supabase/supabase_provider.dart';
+import '../../data/repositories/alert_repository.dart';
 import '../../theme/tokens.dart';
-
-final _alertListProvider = FutureProvider.autoDispose<List<AlertItem>>((
-  ref,
-) async {
-  final supabase = ref.watch(supabaseClientProvider);
-  final session = supabase.auth.currentSession;
-  if (session == null) return [];
-  final apiBase = ref.read(apiBaseUrlProvider);
-  final res = await http
-      .get(
-        Uri.parse('$apiBase/api/alerts?limit=50'),
-        headers: {'Authorization': 'Bearer ${session.accessToken}'},
-      )
-      .timeout(const Duration(seconds: 15));
-  if (res.statusCode != 200) return [];
-  final body = jsonDecode(res.body) as Map<String, dynamic>;
-  final raw = body['alerts'] as List<dynamic>? ?? [];
-  return raw.map((e) => AlertItem.fromJson(e as Map<String, dynamic>)).toList();
-});
-
-class AlertItem {
-  const AlertItem({
-    required this.id,
-    required this.severityLevel,
-    required this.status,
-    required this.createdAt,
-    this.acknowledgedAt,
-    this.ruleTermId,
-  });
-
-  factory AlertItem.fromJson(Map<String, dynamic> j) => AlertItem(
-    id: j['id'] as String,
-    severityLevel: j['severity_level'] as String? ?? 'info',
-    status: j['status'] as String? ?? 'open',
-    createdAt: j['created_at'] as String? ?? '',
-    acknowledgedAt: j['acknowledged_at'] as String?,
-    ruleTermId: (j['rule'] as Map<String, dynamic>?)?['term_id'] as String?,
-  );
-
-  final String id;
-  final String severityLevel;
-  final String status;
-  final String createdAt;
-  final String? acknowledgedAt;
-  final String? ruleTermId;
-}
 
 class AlertListScreen extends ConsumerWidget {
   const AlertListScreen({super.key});
@@ -59,7 +10,7 @@ class AlertListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = Theme.of(context);
-    final alertsAsync = ref.watch(_alertListProvider);
+    final alertsAsync = ref.watch(alertListProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Alerts')),
@@ -92,7 +43,7 @@ class AlertListScreen extends ConsumerWidget {
               );
             }
             return RefreshIndicator(
-              onRefresh: () => ref.refresh(_alertListProvider.future),
+              onRefresh: () => ref.refresh(alertListProvider.future),
               child: ListView.separated(
                 padding: const EdgeInsets.all(Space.s4),
                 itemCount: alerts.length,
@@ -152,21 +103,10 @@ class _AlertTile extends ConsumerWidget {
       trailing: isOpen
           ? TextButton(
               onPressed: () async {
-                final supabase = ref.read(supabaseClientProvider);
-                final session = supabase.auth.currentSession;
-                if (session == null) return;
-                final apiBase = ref.read(apiBaseUrlProvider);
                 try {
-                  await http.post(
-                    Uri.parse('$apiBase/api/alerts/acknowledge'),
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': 'Bearer ${session.accessToken}',
-                    },
-                    body: jsonEncode({'alert_id': alert.id}),
-                  );
+                  await ref.read(alertRepositoryProvider).acknowledge(alert.id);
                   if (context.mounted) {
-                    ref.refresh(_alertListProvider.future);
+                    ref.refresh(alertListProvider.future);
                   }
                 } catch (_) {}
               },

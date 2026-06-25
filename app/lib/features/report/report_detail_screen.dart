@@ -3,6 +3,7 @@
 // PRO-CTCAE term (display_name from symptom_term).
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -10,18 +11,65 @@ import '../../data/repositories/report_repository.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/severity_chip.dart';
 
-class ReportDetailScreen extends ConsumerWidget {
+class ReportDetailScreen extends ConsumerStatefulWidget {
   const ReportDetailScreen({super.key, required this.reportId});
   final String reportId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ReportDetailScreen> createState() => _ReportDetailScreenState();
+}
+
+class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
+  bool _sharing = false;
+
+  Future<void> _share() async {
+    setState(() => _sharing = true);
+    try {
+      final url = await ref
+          .read(reportRepositoryProvider)
+          .shareReport(widget.reportId);
+      if (!mounted) return;
+      await Clipboard.setData(ClipboardData(text: url));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Share link copied to clipboard')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Share failed: $e'),
+          backgroundColor: SeverityColors.severe,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final repo = ref.watch(reportRepositoryProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Report')),
+      appBar: AppBar(
+        title: const Text('Report'),
+        actions: [
+          IconButton(
+            icon: _sharing
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.share),
+            tooltip: 'Share',
+            onPressed: _sharing ? null : _share,
+          ),
+        ],
+      ),
       body: SafeArea(
         child: FutureBuilder<ReportDetail?>(
-          future: repo.fetchDetail(reportId),
+          future: repo.fetchDetail(widget.reportId),
           builder: (context, snap) {
             if (snap.connectionState != ConnectionState.done) {
               return const Center(child: CircularProgressIndicator());
