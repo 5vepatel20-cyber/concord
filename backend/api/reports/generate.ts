@@ -262,6 +262,41 @@ export const POST = async (req: Request): Promise<Response> => {
         ? `Medication adherence: ${overallAdherencePct}%.`
         : "No medication data.";
 
+      const vitalsArr = [...vitalsByDate.values()];
+      const vitalsLine = (() => {
+        const parts: string[] = [];
+        const stepsVals = vitalsArr.filter((v) => v.steps != null).map((v) => v.steps!);
+        if (stepsVals.length > 0) {
+          const avg = Math.round(stepsVals.reduce((a, b) => a + b, 0) / stepsVals.length);
+          parts.push(`avg ${avg} steps/day`);
+        }
+        const hrVals = vitalsArr.filter((v) => v.avg_hr_bpm != null).map((v) => v.avg_hr_bpm!);
+        if (hrVals.length > 0) {
+          const avg = Math.round(hrVals.reduce((a, b) => a + b, 0) / hrVals.length);
+          parts.push(`avg HR ${avg} bpm`);
+        }
+        const sleepVals = vitalsArr.filter((v) => v.sleep_hours != null).map((v) => v.sleep_hours!);
+        if (sleepVals.length > 0) {
+          const avg = Math.round((sleepVals.reduce((a, b) => a + b, 0) / sleepVals.length) * 10) / 10;
+          parts.push(`avg sleep ${avg}h`);
+        }
+        const bpSysVals = vitalsArr.filter((v) => v.bp_sys_avg != null).map((v) => v.bp_sys_avg!);
+        const bpDiaVals = vitalsArr.filter((v) => v.bp_dia_avg != null).map((v) => v.bp_dia_avg!);
+        if (bpSysVals.length > 0 && bpDiaVals.length > 0) {
+          const sysAvg = Math.round(bpSysVals.reduce((a, b) => a + b, 0) / bpSysVals.length);
+          const diaAvg = Math.round(bpDiaVals.reduce((a, b) => a + b, 0) / bpDiaVals.length);
+          parts.push(`avg BP ${sysAvg}/${diaAvg}`);
+        }
+        const weightVals = vitalsArr.filter((v) => v.weight_kg != null).map((v) => v.weight_kg!);
+        if (weightVals.length > 0) {
+          const avg = Math.round((weightVals.reduce((a, b) => a + b, 0) / weightVals.length) * 10) / 10;
+          parts.push(`avg weight ${avg}kg`);
+        }
+        return parts.length > 0
+          ? `Vitals trends (${vitalsArr.length} days): ${parts.join(", ")}.`
+          : "No vitals data.";
+      })();
+
       let narrative = "";
       for await (const chunk of provider.chat({
         messages: [
@@ -281,6 +316,7 @@ export const POST = async (req: Request): Promise<Response> => {
               worstLine,
               newLine,
               medLine,
+              vitalsLine,
               `Total symptoms tracked: ${heatmap.length} entries across ${termGradeCounts.size} different symptom types.`,
               "Write a brief narrative summary a patient could share with their doctor:",
             ].join("\n"),
