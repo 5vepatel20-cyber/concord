@@ -16,16 +16,22 @@ final atlasRepositoryProvider = Provider<AtlasRepository>((ref) {
 });
 
 class ChatMessage {
-  const ChatMessage._(this.role, this.text, this.streaming);
+  const ChatMessage._(this.role, this.text, this.streaming, this.citations);
   final String role; // 'user' | 'assistant'
   final String text;
   final bool streaming;
+  final List<SseCitation>? citations;
 
-  factory ChatMessage.user(String text) => ChatMessage._('user', text, false);
+  factory ChatMessage.user(String text) =>
+      ChatMessage._('user', text, false, null);
   factory ChatMessage.assistant(String text) =>
-      ChatMessage._('assistant', text, false);
+      ChatMessage._('assistant', text, false, null);
   factory ChatMessage.assistantStreaming(String text) =>
-      ChatMessage._('assistant', text, true);
+      ChatMessage._('assistant', text, true, null);
+  factory ChatMessage.assistantWithCitations(
+    String text,
+    List<SseCitation> citations,
+  ) => ChatMessage._('assistant', text, false, citations);
 }
 
 class AtlasRepository {

@@ -10,69 +10,69 @@ enum MedRoute { oral, iv, subQ, topical, inhaled, other }
 
 extension MedRouteX on MedRoute {
   String get wireValue => switch (this) {
-        MedRoute.oral => 'oral',
-        MedRoute.iv => 'iv',
-        MedRoute.subQ => 'sub_q',
-        MedRoute.topical => 'topical',
-        MedRoute.inhaled => 'inhaled',
-        MedRoute.other => 'other',
-      };
+    MedRoute.oral => 'oral',
+    MedRoute.iv => 'iv',
+    MedRoute.subQ => 'sub_q',
+    MedRoute.topical => 'topical',
+    MedRoute.inhaled => 'inhaled',
+    MedRoute.other => 'other',
+  };
   static MedRoute fromWire(String s) => switch (s) {
-        'oral' => MedRoute.oral,
-        'iv' => MedRoute.iv,
-        'sub_q' => MedRoute.subQ,
-        'topical' => MedRoute.topical,
-        'inhaled' => MedRoute.inhaled,
-        _ => MedRoute.other,
-      };
+    'oral' => MedRoute.oral,
+    'iv' => MedRoute.iv,
+    'sub_q' => MedRoute.subQ,
+    'topical' => MedRoute.topical,
+    'inhaled' => MedRoute.inhaled,
+    _ => MedRoute.other,
+  };
   String get displayName => switch (this) {
-        MedRoute.oral => 'By mouth',
-        MedRoute.iv => 'IV',
-        MedRoute.subQ => 'Under the skin',
-        MedRoute.topical => 'On the skin',
-        MedRoute.inhaled => 'Inhaled',
-        MedRoute.other => 'Other',
-      };
+    MedRoute.oral => 'By mouth',
+    MedRoute.iv => 'IV',
+    MedRoute.subQ => 'Under the skin',
+    MedRoute.topical => 'On the skin',
+    MedRoute.inhaled => 'Inhaled',
+    MedRoute.other => 'Other',
+  };
 }
 
 enum MedFrequency { daily, weekly, asNeeded }
 
 extension MedFrequencyX on MedFrequency {
   String get wireValue => switch (this) {
-        MedFrequency.daily => 'daily',
-        MedFrequency.weekly => 'weekly',
-        MedFrequency.asNeeded => 'as_needed',
-      };
+    MedFrequency.daily => 'daily',
+    MedFrequency.weekly => 'weekly',
+    MedFrequency.asNeeded => 'as_needed',
+  };
   static MedFrequency fromWire(String s) => switch (s) {
-        'daily' => MedFrequency.daily,
-        'weekly' => MedFrequency.weekly,
-        'as_needed' => MedFrequency.asNeeded,
-        _ => MedFrequency.daily,
-      };
+    'daily' => MedFrequency.daily,
+    'weekly' => MedFrequency.weekly,
+    'as_needed' => MedFrequency.asNeeded,
+    _ => MedFrequency.daily,
+  };
 }
 
 enum AdherenceStatus { taken, skipped, missed, takenLate }
 
 extension AdherenceStatusX on AdherenceStatus {
   String get wireValue => switch (this) {
-        AdherenceStatus.taken => 'taken',
-        AdherenceStatus.skipped => 'skipped',
-        AdherenceStatus.missed => 'missed',
-        AdherenceStatus.takenLate => 'taken_late',
-      };
+    AdherenceStatus.taken => 'taken',
+    AdherenceStatus.skipped => 'skipped',
+    AdherenceStatus.missed => 'missed',
+    AdherenceStatus.takenLate => 'taken_late',
+  };
   static AdherenceStatus fromWire(String s) => switch (s) {
-        'taken' => AdherenceStatus.taken,
-        'skipped' => AdherenceStatus.skipped,
-        'missed' => AdherenceStatus.missed,
-        'taken_late' => AdherenceStatus.takenLate,
-        _ => AdherenceStatus.missed,
-      };
+    'taken' => AdherenceStatus.taken,
+    'skipped' => AdherenceStatus.skipped,
+    'missed' => AdherenceStatus.missed,
+    'taken_late' => AdherenceStatus.takenLate,
+    _ => AdherenceStatus.missed,
+  };
   String get displayName => switch (this) {
-        AdherenceStatus.taken => 'Taken',
-        AdherenceStatus.skipped => 'Skipped',
-        AdherenceStatus.missed => 'Missed',
-        AdherenceStatus.takenLate => 'Taken late',
-      };
+    AdherenceStatus.taken => 'Taken',
+    AdherenceStatus.skipped => 'Skipped',
+    AdherenceStatus.missed => 'Missed',
+    AdherenceStatus.takenLate => 'Taken late',
+  };
 }
 
 /// Free-form JSON the backend stores in medication.schedule. We model it
@@ -90,54 +90,54 @@ class MedSchedule {
   final String? notes;
 
   Map<String, dynamic> toJson() => {
-        'frequency': frequency.wireValue,
-        if (times.isNotEmpty) 'times': times,
-        if (days.isNotEmpty) 'days': days.map((d) => d.wireValue).toList(),
-        if (notes != null) 'notes': notes,
-      };
+    'frequency': frequency.wireValue,
+    if (times.isNotEmpty) 'times': times,
+    if (days.isNotEmpty) 'days': days.map((d) => d.wireValue).toList(),
+    if (notes != null) 'notes': notes,
+  };
 
   static MedSchedule fromJson(Map<String, dynamic> j) => MedSchedule(
-        frequency: MedFrequencyX.fromWire(j['frequency'] as String? ?? 'daily'),
-        times: (j['times'] as List?)?.cast<String>() ?? const [],
-        days: ((j['days'] as List?) ?? const [])
-            .cast<String>()
-            .map(WeekdayX.fromWire)
-            .toList(),
-        notes: j['notes'] as String?,
-      );
+    frequency: MedFrequencyX.fromWire(j['frequency'] as String? ?? 'daily'),
+    times: (j['times'] as List?)?.cast<String>() ?? const [],
+    days: ((j['days'] as List?) ?? const [])
+        .cast<String>()
+        .map(WeekdayX.fromWire)
+        .toList(),
+    notes: j['notes'] as String?,
+  );
 }
 
 enum Weekday { mon, tue, wed, thu, fri, sat, sun }
 
 extension WeekdayX on Weekday {
   String get wireValue => switch (this) {
-        Weekday.mon => 'mon',
-        Weekday.tue => 'tue',
-        Weekday.wed => 'wed',
-        Weekday.thu => 'thu',
-        Weekday.fri => 'fri',
-        Weekday.sat => 'sat',
-        Weekday.sun => 'sun',
-      };
+    Weekday.mon => 'mon',
+    Weekday.tue => 'tue',
+    Weekday.wed => 'wed',
+    Weekday.thu => 'thu',
+    Weekday.fri => 'fri',
+    Weekday.sat => 'sat',
+    Weekday.sun => 'sun',
+  };
   static Weekday fromWire(String s) => switch (s) {
-        'mon' => Weekday.mon,
-        'tue' => Weekday.tue,
-        'wed' => Weekday.wed,
-        'thu' => Weekday.thu,
-        'fri' => Weekday.fri,
-        'sat' => Weekday.sat,
-        'sun' => Weekday.sun,
-        _ => Weekday.mon,
-      };
+    'mon' => Weekday.mon,
+    'tue' => Weekday.tue,
+    'wed' => Weekday.wed,
+    'thu' => Weekday.thu,
+    'fri' => Weekday.fri,
+    'sat' => Weekday.sat,
+    'sun' => Weekday.sun,
+    _ => Weekday.mon,
+  };
   String get shortName => switch (this) {
-        Weekday.mon => 'Mon',
-        Weekday.tue => 'Tue',
-        Weekday.wed => 'Wed',
-        Weekday.thu => 'Thu',
-        Weekday.fri => 'Fri',
-        Weekday.sat => 'Sat',
-        Weekday.sun => 'Sun',
-      };
+    Weekday.mon => 'Mon',
+    Weekday.tue => 'Tue',
+    Weekday.wed => 'Wed',
+    Weekday.thu => 'Thu',
+    Weekday.fri => 'Fri',
+    Weekday.sat => 'Sat',
+    Weekday.sun => 'Sun',
+  };
 }
 
 class Medication {
@@ -151,6 +151,7 @@ class Medication {
     this.rxnormCode,
     this.active = true,
     this.createdAt,
+    this.sideEffectsWatch,
   });
 
   /// Server id when known; null when this row is still in the offline
@@ -164,32 +165,35 @@ class Medication {
   final String? rxnormCode;
   final bool active;
   final DateTime? createdAt;
+  final String? sideEffectsWatch;
 
   Map<String, dynamic> toJson() => {
-        if (id != null) 'id': id,
-        'display_name': displayName,
-        if (dose != null) 'dose': dose,
-        if (unit != null) 'unit': unit,
-        'route': route.wireValue,
-        'schedule': schedule.toJson(),
-        if (rxnormCode != null) 'rxnorm_code': rxnormCode,
-        'active': active,
-      };
+    if (id != null) 'id': id,
+    'display_name': displayName,
+    if (dose != null) 'dose': dose,
+    if (unit != null) 'unit': unit,
+    'route': route.wireValue,
+    'schedule': schedule.toJson(),
+    if (rxnormCode != null) 'rxnorm_code': rxnormCode,
+    'active': active,
+    if (sideEffectsWatch != null) 'side_effects_watch': sideEffectsWatch,
+  };
 
   static Medication fromJson(Map<String, dynamic> j) => Medication(
-        id: j['id'] as String?,
-        displayName: j['display_name'] as String,
-        dose: j['dose'] as String?,
-        unit: j['unit'] as String?,
-        route: MedRouteX.fromWire(j['route'] as String? ?? 'oral'),
-        schedule: MedSchedule.fromJson(
-          (j['schedule'] as Map?)?.cast<String, dynamic>() ??
-              const {'frequency': 'daily'},
-        ),
-        rxnormCode: j['rxnorm_code'] as String?,
-        active: j['active'] as bool? ?? true,
-        createdAt: DateTime.tryParse(j['created_at'] as String? ?? ''),
-      );
+    id: j['id'] as String?,
+    displayName: j['display_name'] as String,
+    dose: j['dose'] as String?,
+    unit: j['unit'] as String?,
+    route: MedRouteX.fromWire(j['route'] as String? ?? 'oral'),
+    schedule: MedSchedule.fromJson(
+      (j['schedule'] as Map?)?.cast<String, dynamic>() ??
+          const {'frequency': 'daily'},
+    ),
+    rxnormCode: j['rxnorm_code'] as String?,
+    active: j['active'] as bool? ?? true,
+    createdAt: DateTime.tryParse(j['created_at'] as String? ?? ''),
+    sideEffectsWatch: j['side_effects_watch'] as String?,
+  );
 
   /// Compact human description: "Tamoxifen 20 mg, By mouth, daily at 08:00".
   String get summary {
@@ -199,9 +203,9 @@ class Medication {
     final schedStr = schedule.frequency == MedFrequency.asNeeded
         ? 'as needed'
         : schedule.times.isEmpty
-            ? schedule.frequency.wireValue
-            : '${schedule.frequency.wireValue} at '
-                '${schedule.times.join(", ")}';
+        ? schedule.frequency.wireValue
+        : '${schedule.frequency.wireValue} at '
+              '${schedule.times.join(", ")}';
     return '$base$routeStr — $schedStr';
   }
 }
@@ -222,26 +226,25 @@ class AdherenceEvent {
   final DateTime? loggedAt;
 
   Map<String, dynamic> toJson() => {
-        // medication_id is the URL path parameter, NOT in the body.
-        // We don't include it here so a round-trip via toJson -> fromJson
-        // preserves the same shape the server expects.
-        'status': status.wireValue,
-        'scheduled_for': scheduledFor.toUtc().toIso8601String(),
-        if (loggedAt != null) 'logged_at': loggedAt!.toUtc().toIso8601String(),
-      };
+    // medication_id is the URL path parameter, NOT in the body.
+    // We don't include it here so a round-trip via toJson -> fromJson
+    // preserves the same shape the server expects.
+    'status': status.wireValue,
+    'scheduled_for': scheduledFor.toUtc().toIso8601String(),
+    if (loggedAt != null) 'logged_at': loggedAt!.toUtc().toIso8601String(),
+  };
 
   /// Parse a server response. The server returns the full event row,
   /// including medication_id, so we accept it here but it's not required
   /// for our request-body builder.
   static AdherenceEvent fromJson(Map<String, dynamic> j) => AdherenceEvent(
-        medicationId: j['medication_id'] as String? ?? '',
-        scheduledFor:
-            DateTime.parse(j['scheduled_for'] as String).toUtc(),
-        status: AdherenceStatusX.fromWire(j['status'] as String? ?? 'missed'),
-        loggedAt: j['logged_at'] != null
-            ? DateTime.parse(j['logged_at'] as String).toUtc()
-            : null,
-      );
+    medicationId: j['medication_id'] as String? ?? '',
+    scheduledFor: DateTime.parse(j['scheduled_for'] as String).toUtc(),
+    status: AdherenceStatusX.fromWire(j['status'] as String? ?? 'missed'),
+    loggedAt: j['logged_at'] != null
+        ? DateTime.parse(j['logged_at'] as String).toUtc()
+        : null,
+  );
 }
 
 /// Helper: encode a Medication draft to a JSON body that

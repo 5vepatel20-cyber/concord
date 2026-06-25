@@ -12,6 +12,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/network/sse_client.dart';
 import '../../data/repositories/atlas_repository.dart';
@@ -92,6 +93,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               _messages[i] = ChatMessage.assistantStreaming(cur.text + text);
             });
             _scrollToBottom();
+          case SseCitations(:final citations):
+            setState(() {
+              final i = _messages.length - 1;
+              final cur = _messages[i];
+              _messages[i] = ChatMessage.assistantWithCitations(
+                cur.text,
+                citations,
+              );
+            });
           case SseDone():
             setState(() {
               final i = _messages.length - 1;
@@ -270,12 +280,58 @@ class _MessageBubble extends StatelessWidget {
                 borderRadius: BorderRadius.circular(Radii.lg),
                 border: isUser ? null : Border.all(color: Neutrals.mist),
               ),
-              child: message.streaming && message.text.isEmpty
-                  ? const _TypingDot()
-                  : Text(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (message.streaming && message.text.isEmpty)
+                    const _TypingDot()
+                  else
+                    Text(
                       message.text,
                       style: t.textTheme.bodyMedium?.copyWith(color: fg),
                     ),
+                  if (message.citations != null &&
+                      message.citations!.isNotEmpty) ...[
+                    const SizedBox(height: Space.s2),
+                    const Divider(height: 1),
+                    const SizedBox(height: Space.s1),
+                    Text(
+                      'Sources',
+                      style: t.textTheme.labelSmall?.copyWith(
+                        color: Neutrals.hint,
+                      ),
+                    ),
+                    const SizedBox(height: Space.s1),
+                    ...message.citations!.map(
+                      (c) => Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: GestureDetector(
+                          onTap: () async {
+                            final uri = Uri.tryParse(c.uri);
+                            if (uri != null) {
+                              try {
+                                await launchUrl(
+                                  uri,
+                                  mode: LaunchMode.externalApplication,
+                                );
+                              } catch (_) {}
+                            }
+                          },
+                          child: Text(
+                            c.title ?? c.uri,
+                            style: t.textTheme.labelSmall?.copyWith(
+                              color: BrandColors.concordBlue,
+                              decoration: TextDecoration.underline,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ],

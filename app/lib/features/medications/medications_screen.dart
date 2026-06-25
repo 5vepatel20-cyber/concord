@@ -228,6 +228,29 @@ class _MedicationCard extends ConsumerWidget {
               medication.summary,
               style: t.textTheme.bodySmall?.copyWith(color: Neutrals.slate),
             ),
+            if (medication.sideEffectsWatch != null &&
+                medication.sideEffectsWatch!.isNotEmpty) ...[
+              const SizedBox(height: Space.s2),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 14,
+                    color: SeverityColors.moderate,
+                  ),
+                  const SizedBox(width: Space.s1),
+                  Expanded(
+                    child: Text(
+                      'Watch for: ${medication.sideEffectsWatch}',
+                      style: t.textTheme.bodySmall?.copyWith(
+                        color: SeverityColors.moderate,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             if (medication.id != null && due) ...[
               const SizedBox(height: Space.s3),
               Row(

@@ -24,6 +24,8 @@ const UpdateBody = z.object({
   route: z
     .enum(["oral", "iv", "sub_q", "topical", "inhaled", "other"])
     .optional(),
+  // MED-07: side-effects-to-watch notes.
+  side_effects_watch: z.string().max(1000).optional(),
 });
 
 export const PATCH = async (req: Request): Promise<Response> => {

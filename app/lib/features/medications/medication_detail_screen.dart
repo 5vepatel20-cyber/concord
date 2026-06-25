@@ -157,6 +157,8 @@ class _BodyState extends ConsumerState<_Body> {
         ),
         _InfoRow(label: 'Route', value: m.route.displayName),
         _InfoRow(label: 'Schedule', value: m.summary),
+        if (m.sideEffectsWatch != null && m.sideEffectsWatch!.isNotEmpty)
+          _InfoRow(label: 'Watch for', value: m.sideEffectsWatch!),
         if (m.createdAt != null)
           _InfoRow(
             label: 'Added',

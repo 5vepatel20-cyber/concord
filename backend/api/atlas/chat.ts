@@ -53,7 +53,7 @@ function buildSystemPrompt(tone: string | undefined): string {
     spanish: "Responde siempre en español. Usa un lenguaje claro y cálido, a nivel de lectura de 6° grado. No uses jerga médica sin explicarla.",
   };
 
-  const instruction = toneInstruction[tone] ?? toneInstruction.default;
+  const instruction = (tone && toneInstruction[tone]) ?? toneInstruction.default;
   return [...base, instruction].join(" ");
 }
 
@@ -96,6 +96,11 @@ export const POST = async (req: Request): Promise<Response> => {
           model: usePro ? "pro" : "flash",
           temperature: 0.7,
         })) {
+          if (chunk.citations) {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ citations: chunk.citations })}\n\n`),
+            );
+          }
           if (chunk.text) {
             controller.enqueue(
               encoder.encode(`data: ${JSON.stringify({ text: chunk.text })}\n\n`),

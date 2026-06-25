@@ -27,6 +27,20 @@ class SseDelta extends SseEvent {
   final String text;
 }
 
+class SseCitations extends SseEvent {
+  const SseCitations(this.citations);
+  final List<SseCitation> citations;
+}
+
+class SseCitation {
+  const SseCitation({required this.uri, this.title});
+  final String uri;
+  final String? title;
+
+  factory SseCitation.fromJson(Map<String, dynamic> j) =>
+      SseCitation(uri: j['uri'] as String? ?? '', title: j['title'] as String?);
+}
+
 class SseDone extends SseEvent {
   const SseDone();
 }
@@ -127,6 +141,14 @@ class SseClient {
         return SseError(
           code: err['code']?.toString() ?? 'unknown',
           message: err['message']?.toString() ?? 'Atlas error',
+        );
+      }
+      if (json['citations'] is List) {
+        final raw = json['citations'] as List;
+        return SseCitations(
+          raw
+              .map((c) => SseCitation.fromJson(c as Map<String, dynamic>))
+              .toList(),
         );
       }
       final done = json['done'] == true;

@@ -63,6 +63,24 @@ export class GeminiProvider implements AIProvider {
       const text = item.text();
       if (text) yield { text, done: false };
     }
+
+    // ATLAS-06: Extract citation metadata from the aggregated response.
+    try {
+      const aggregated = await result.response;
+      const sources = aggregated.candidates?.[0]?.citationMetadata?.citationSources;
+      if (sources && sources.length > 0) {
+        const citations: Array<{ uri: string }> = [];
+        for (const s of sources) {
+          if (s.uri) citations.push({ uri: s.uri });
+        }
+        if (citations.length > 0) {
+          yield { text: "", done: false, citations };
+        }
+      }
+    } catch {
+      // Citations are best-effort; never crash the stream.
+    }
+
     yield { text: "", done: true };
   }
 

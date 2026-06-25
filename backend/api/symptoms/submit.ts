@@ -14,6 +14,7 @@
 
 import { z } from "zod";
 import { requireUser } from "../../_lib/auth.js";
+import { logAudit } from "../../_lib/audit.js";
 import { serviceClient } from "../../_lib/supabase.js";
 import { initSentry, Sentry } from "../../_lib/sentry.js";
 import { corsed, preflight, corsedJsonError } from "../../_lib/cors.js";
@@ -119,6 +120,20 @@ export const POST = async (req: Request): Promise<Response> => {
       Sentry.captureException(cacheWriteErr);
     }
   }
+
+  // SEC-06: Audit log the symptom report submission.
+  await logAudit(supabase, {
+    patientId: user.id,
+    actorId: user.id,
+    action: "symptom_report.submit",
+    entityType: "symptom_report",
+    entityId: result.reportId,
+    details: {
+      responses_written: result.responsesWritten,
+      alerts_created: result.alertsCreated,
+      worsening: result.worsening,
+    },
+  });
 
   return corsed(
     req,

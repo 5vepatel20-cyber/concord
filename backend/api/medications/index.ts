@@ -50,6 +50,8 @@ const CreateBody = z.object({
   source: z
     .enum(["manual", "healthkit", "document_extracted", "clinician"])
     .default("manual"),
+  // MED-07: side-effects-to-watch notes.
+  side_effects_watch: z.string().max(1000).optional(),
 });
 
 export const GET = async (req: Request): Promise<Response> => {
@@ -145,6 +147,7 @@ export const POST = async (req: Request): Promise<Response> => {
     schedule: body.schedule,
     source: body.source,
     active: true,
+    side_effects_watch: body.side_effects_watch ?? null,
   };
   const { data, error } = await supabase
     .from("medication")

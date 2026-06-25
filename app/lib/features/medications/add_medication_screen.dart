@@ -35,6 +35,7 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
   final _dose = TextEditingController();
   final _unit = TextEditingController();
   final _notes = TextEditingController();
+  final _sideEffectsWatch = TextEditingController();
   final _nameFocus = FocusNode();
 
   MedRoute _route = MedRoute.oral;
@@ -66,6 +67,7 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
     _dose.dispose();
     _unit.dispose();
     _notes.dispose();
+    _sideEffectsWatch.dispose();
     super.dispose();
   }
 
@@ -157,6 +159,9 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
       route: _route,
       schedule: schedule,
       rxnormCode: _rxcui,
+      sideEffectsWatch: _sideEffectsWatch.text.trim().isEmpty
+          ? null
+          : _sideEffectsWatch.text.trim(),
     );
     final res = await ref.read(medicationRepositoryProvider).create(draft);
     if (!mounted) return;
@@ -485,6 +490,16 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
                 ),
                 maxLines: 2,
                 maxLength: 500,
+              ),
+              const SizedBox(height: Space.s4),
+              TextFormField(
+                controller: _sideEffectsWatch,
+                decoration: const InputDecoration(
+                  labelText: 'Side effects to watch (optional)',
+                  hintText: 'e.g. nausea, fatigue, rash',
+                ),
+                maxLines: 2,
+                maxLength: 1000,
               ),
               if (_error != null) ...[
                 const SizedBox(height: Space.s2),

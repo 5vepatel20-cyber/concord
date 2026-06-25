@@ -17,10 +17,16 @@ export interface ChatRequest {
   temperature?: number;
 }
 
+export interface CitationSource {
+  uri: string;
+  title?: string;
+}
+
 /** A single chunk from a streaming chat completion. */
 export interface ChatChunk {
   text: string;
   done: boolean;
+  citations?: CitationSource[];
 }
 
 export interface AIProvider {

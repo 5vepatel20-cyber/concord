@@ -1,7 +1,7 @@
 // Profile + settings screen.
 //
 // Sections: Account, Reminders, Privacy, Data, About.
-// - Account: email, sign out (wipes keychain).
+// - Account: email, sign out (wipes keychain), export data, delete account.
 // - Reminders: daily check-in toggle + time picker (SYM-03).
 // - Privacy: PostHog opt-in toggle (default off, persisted locally).
 // - Data: consent version (read-only — captured at onboarding).
@@ -97,6 +97,47 @@ class ProfileScreen extends ConsumerWidget {
                     await supabase.auth.signOut();
                     if (context.mounted) context.go('/sign-in');
                   },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.download_outlined),
+                  title: const Text('Export my data'),
+                  subtitle: const Text('Download all your data as JSON'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    final session = supabase.auth.currentSession;
+                    if (session == null) return;
+                    final url =
+                        '${ref.read(apiBaseUrlProvider)}/api/account/export';
+                    try {
+                      await launchUrl(
+                        Uri.parse(url),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    } catch (_) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Could not open export URL'),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(
+                    Icons.delete_forever_outlined,
+                    color: SeverityColors.severe,
+                  ),
+                  title: const Text('Delete account'),
+                  subtitle: const Text(
+                    'Permanently remove all data',
+                    style: TextStyle(color: SeverityColors.severe),
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _confirmDeleteAccount(context, ref),
                 ),
               ],
             ),
@@ -225,11 +266,11 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const Divider(height: 1),
                 ListTile(
-                  leading: const Icon(Icons.notifications_active_outlined),
-                  title: const Text('Alert history'),
-                  subtitle: const Text('View and acknowledge symptom alerts.'),
+                  leading: const Icon(Icons.download_outlined),
+                  title: const Text('Export my data'),
+                  subtitle: const Text('Download all your data as JSON'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.push('/alerts'),
+                  onTap: () => _exportData(context, ref),
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -433,6 +474,147 @@ class ProfileScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+Future<void> _exportData(BuildContext context, WidgetRef ref) async {
+  final session = ref.read(supabaseClientProvider).auth.currentSession;
+  if (session == null) return;
+
+  try {
+    final res = await http.post(
+      Uri.parse('${ref.read(apiBaseUrlProvider)}/api/account/export'),
+      headers: {'Authorization': 'Bearer ${session.accessToken}'},
+    );
+
+    if (!context.mounted) return;
+
+    if (res.statusCode == 200) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      final data = body['data'] as Map;
+      final totalRows = data.values.fold<int>(
+        0,
+        (s, rows) => s + (rows as List).length,
+      );
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Export complete'),
+            content: Text(
+              'Exported ${data.length} data tables '
+              '($totalRows total records).\n\n'
+              'Your data has been retrieved. Check the server JSON '
+              'response for the full export.',
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Done'),
+              ),
+            ],
+          ),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Export failed')));
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Export error: $e')));
+    }
+  }
+}
+
+Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Delete your account?'),
+      content: const Text(
+        'This will permanently delete your account and all associated data. '
+        'This action cannot be undone.\n\n'
+        'Type DELETE in the field below to confirm.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Cancel'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return;
+
+  // Second dialog: type DELETE to confirm.
+  final ctrl = TextEditingController();
+  final deleteConfirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Type DELETE to confirm'),
+      content: TextField(
+        controller: ctrl,
+        decoration: const InputDecoration(hintText: 'DELETE'),
+        autofocus: true,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, ctrl.text.trim() == 'DELETE'),
+          style: FilledButton.styleFrom(backgroundColor: SeverityColors.severe),
+          child: const Text('Delete permanently'),
+        ),
+      ],
+    ),
+  );
+
+  if (deleteConfirmed != true || !context.mounted) return;
+
+  final session = ref.read(supabaseClientProvider).auth.currentSession;
+  if (session == null) return;
+
+  try {
+    final res = await http.post(
+      Uri.parse('${ref.read(apiBaseUrlProvider)}/api/account/delete'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${session.accessToken}',
+      },
+      body: jsonEncode({'confirmation': 'DELETE'}),
+    );
+
+    if (!context.mounted) return;
+
+    if (res.statusCode == 200) {
+      await ref.read(supabaseClientProvider).auth.signOut();
+      if (context.mounted) context.go('/sign-in');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Account deleted permanently.')),
+      );
+    } else {
+      final msg =
+          (jsonDecode(res.body) as Map<String, dynamic>)['error'] as Map?;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to delete: ${msg?['message'] ?? 'Unknown error'}',
+          ),
+        ),
+      );
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+    }
   }
 }
 
