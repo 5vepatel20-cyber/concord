@@ -1,12 +1,10 @@
-import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
-import '../../data/supabase/supabase_provider.dart';
+import '../../data/repositories/health_repository.dart';
 import '../../theme/tokens.dart';
 import '../../theme/typography.dart';
 
@@ -22,109 +20,77 @@ class HealthMetricsScreen extends ConsumerStatefulWidget {
 
 class _HealthMetricsScreenState extends ConsumerState<HealthMetricsScreen> {
   String? _selectedType;
-  bool _loading = true;
-  String? _error;
   List<MetricTypeGroup> _types = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final apiBase = ref.read(apiBaseUrlProvider);
-      final session = ref.read(supabaseClientProvider).auth.currentSession;
-      if (session == null) return;
-
-      final uri = Uri.parse('$apiBase/api/health/metrics?days=90');
-      final res = await http
-          .get(uri, headers: {'Authorization': 'Bearer ${session.accessToken}'})
-          .timeout(const Duration(seconds: 15));
-
-      if (!mounted) return;
-      if (res.statusCode == 200) {
-        final body = jsonDecode(res.body) as Map<String, dynamic>;
-        final raw = (body['types'] as List<dynamic>?) ?? [];
-        setState(() {
-          _types = raw
-              .map((t) => MetricTypeGroup.fromJson(t as Map<String, dynamic>))
-              .toList();
-          if (_types.isNotEmpty && _selectedType == null) {
-            _selectedType = _types.first.type;
-          }
-        });
-      } else {
-        setState(() => _error = 'Failed to load (${res.statusCode})');
-      }
-    } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  MetricTypeGroup? get _selected =>
-      _types.where((t) => t.type == _selectedType).firstOrNull;
+  bool _initialLoad = true;
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
+    final metricsAsync = ref.watch(healthMetricsProvider);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Health metrics')),
       body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(Space.s6),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 48,
-                        color: SeverityColors.severe,
-                      ),
-                      const SizedBox(height: Space.s3),
-                      Text(
-                        _error!,
-                        textAlign: TextAlign.center,
-                        style: t.textTheme.bodyMedium?.copyWith(
-                          color: SeverityColors.severe,
-                        ),
-                      ),
-                      const SizedBox(height: Space.s3),
-                      FilledButton(
-                        onPressed: _load,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            : _types.isEmpty
-            ? _EmptyState(t: t)
-            : Column(
+        child: metricsAsync.when(
+          loading: () => _initialLoad
+              ? const Center(child: CircularProgressIndicator())
+              : const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(Space.s6),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _TypeChips(
-                    types: _types,
-                    selected: _selectedType,
-                    onSelected: (t) => setState(() => _selectedType = t),
+                  const Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: SeverityColors.severe,
                   ),
-                  Expanded(
-                    child: _selected != null
-                        ? _MetricDetail(group: _selected!, onRefresh: _load)
-                        : const SizedBox(),
+                  const SizedBox(height: Space.s3),
+                  Text(
+                    '$e',
+                    textAlign: TextAlign.center,
+                    style: t.textTheme.bodyMedium?.copyWith(
+                      color: SeverityColors.severe,
+                    ),
+                  ),
+                  const SizedBox(height: Space.s3),
+                  FilledButton(
+                    onPressed: () => ref.invalidate(healthMetricsProvider),
+                    child: const Text('Retry'),
                   ),
                 ],
               ),
+            ),
+          ),
+          data: (types) {
+            _initialLoad = false;
+            if (_selectedType == null && types.isNotEmpty) {
+              _selectedType = types.first.type;
+            }
+            if (types.isEmpty) return _EmptyState(t: t);
+            return Column(
+              children: [
+                _TypeChips(
+                  types: types,
+                  selected: _selectedType,
+                  onSelected: (t) => setState(() => _selectedType = t),
+                ),
+                Expanded(
+                  child: _selected != null
+                      ? _MetricDetail(
+                          group: types.firstWhere(
+                            (g) => g.type == _selectedType,
+                          ),
+                          onRefresh: () =>
+                              ref.invalidate(healthMetricsProvider),
+                        )
+                      : const SizedBox(),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -253,24 +219,28 @@ class _MetricDetail extends StatelessWidget {
                       value: group.latest,
                       unit: group.unit,
                       color: chartColor,
+                      metricType: group.type,
                     ),
                     _Stat(
                       label: 'Avg',
                       value: group.avg,
                       unit: group.unit,
                       color: chartColor,
+                      metricType: group.type,
                     ),
                     _Stat(
                       label: 'Min',
                       value: group.min,
                       unit: group.unit,
                       color: chartColor,
+                      metricType: group.type,
                     ),
                     _Stat(
                       label: 'Max',
                       value: group.max,
                       unit: group.unit,
                       color: chartColor,
+                      metricType: group.type,
                     ),
                   ],
                 ),
@@ -302,7 +272,13 @@ class _MetricDetail extends StatelessWidget {
           const SizedBox(height: Space.s2),
           ...samples
               .take(20)
-              .map((s) => _SampleRow(sample: s, color: chartColor)),
+              .map(
+                (s) => _SampleRow(
+                  sample: s,
+                  color: chartColor,
+                  metricType: group.type,
+                ),
+              ),
         ],
       ),
     );
@@ -315,15 +291,27 @@ class _Stat extends StatelessWidget {
     this.value,
     required this.unit,
     required this.color,
+    this.metricType,
   });
   final String label;
   final num? value;
   final String unit;
   final Color color;
+  final String? metricType;
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
+    final range = value != null && metricType != null
+        ? referenceRangeFor(metricType!, value!)
+        : null;
+    final isAbnormal =
+        range != null &&
+        range.label != 'Normal' &&
+        range.label != '' &&
+        range.label != 'Individual' &&
+        range.label != 'Goal dependent';
+    final flagColor = isAbnormal ? SeverityColors.warn : null;
     return Column(
       children: [
         Text(
@@ -331,17 +319,35 @@ class _Stat extends StatelessWidget {
           style: t.textTheme.labelSmall?.copyWith(color: Neutrals.slate),
         ),
         const SizedBox(height: Space.s1),
-        Text(
-          value != null ? _format(value!) : '--',
-          style: t.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: color,
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isAbnormal)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Icon(Icons.flag, size: 14, color: flagColor),
+              ),
+            Text(
+              value != null ? _format(value!) : '--',
+              style: t.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: isAbnormal ? flagColor : color,
+              ),
+            ),
+          ],
         ),
         Text(
           unit,
           style: t.textTheme.labelSmall?.copyWith(color: Neutrals.hint),
         ),
+        if (range != null && range.low != null)
+          Text(
+            '${range.low}-${range.high}',
+            style: t.textTheme.labelSmall?.copyWith(
+              color: Neutrals.hint,
+              fontSize: 10,
+            ),
+          ),
       ],
     );
   }
@@ -353,9 +359,14 @@ class _Stat extends StatelessWidget {
 }
 
 class _SampleRow extends StatelessWidget {
-  const _SampleRow({required this.sample, required this.color});
+  const _SampleRow({
+    required this.sample,
+    required this.color,
+    this.metricType,
+  });
   final MetricSample sample;
   final Color color;
+  final String? metricType;
 
   @override
   Widget build(BuildContext context) {
@@ -367,6 +378,15 @@ class _SampleRow extends StatelessWidget {
         sample.value is double && sample.value == sample.value.roundToDouble()
         ? sample.value.toInt().toString()
         : sample.value.toStringAsFixed(1);
+    final range = metricType != null
+        ? referenceRangeFor(metricType!, sample.value)
+        : null;
+    final isAbnormal =
+        range != null &&
+        range.label != 'Normal' &&
+        range.label != '' &&
+        range.label != 'Individual' &&
+        range.label != 'Goal dependent';
     return Padding(
       padding: const EdgeInsets.only(bottom: Space.s1),
       child: Row(
@@ -376,14 +396,22 @@ class _SampleRow extends StatelessWidget {
             height: 6,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: color.withValues(alpha: 0.6),
+              color: isAbnormal
+                  ? SeverityColors.warn
+                  : color.withValues(alpha: 0.6),
             ),
           ),
           const SizedBox(width: Space.s2),
+          if (isAbnormal)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Icon(Icons.flag, size: 14, color: SeverityColors.warn),
+            ),
           Text(
             '$val ${sample.unit}',
             style: t.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w500,
+              color: isAbnormal ? SeverityColors.warn : null,
             ),
           ),
           const Spacer(),
@@ -485,74 +513,4 @@ class _LineChartPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _LineChartPainter old) =>
       old.samples != samples || old.color != color;
-}
-
-// ── Data models ───────────────────────────────────────────────────────────────
-
-class MetricTypeGroup {
-  final String type;
-  final String label;
-  final String unit;
-  final String color;
-  final int count;
-  final num? latest;
-  final num? min;
-  final num? max;
-  final num? avg;
-  final List<MetricSample> samples;
-
-  MetricTypeGroup({
-    required this.type,
-    required this.label,
-    required this.unit,
-    required this.color,
-    required this.count,
-    this.latest,
-    this.min,
-    this.max,
-    this.avg,
-    required this.samples,
-  });
-
-  factory MetricTypeGroup.fromJson(Map<String, dynamic> j) {
-    final rawSamples = (j['samples'] as List<dynamic>?) ?? [];
-    return MetricTypeGroup(
-      type: j['type'] as String? ?? '',
-      label: j['label'] as String? ?? '',
-      unit: j['unit'] as String? ?? '',
-      color: j['color'] as String? ?? '#888',
-      count: j['count'] as int? ?? 0,
-      latest: j['latest'] as num?,
-      min: j['min'] as num?,
-      max: j['max'] as num?,
-      avg: j['avg'] as num?,
-      samples: rawSamples
-          .map((s) => MetricSample.fromJson(s as Map<String, dynamic>))
-          .toList(),
-    );
-  }
-}
-
-class MetricSample {
-  final String id;
-  final num value;
-  final String unit;
-  final String measuredAt;
-  final String? source;
-
-  MetricSample({
-    required this.id,
-    required this.value,
-    required this.unit,
-    required this.measuredAt,
-    this.source,
-  });
-
-  factory MetricSample.fromJson(Map<String, dynamic> j) => MetricSample(
-    id: j['id'] as String? ?? '',
-    value: j['value'] as num? ?? 0,
-    unit: j['unit'] as String? ?? '',
-    measuredAt: j['measured_at'] as String? ?? '',
-    source: j['source'] as String?,
-  );
 }
