@@ -11,6 +11,7 @@
 #include <file_selector_windows/file_selector_windows.h>
 #include <flutter_secure_storage_windows/flutter_secure_storage_windows_plugin.h>
 #include <passkeys_windows/passkeys_windows_plugin.h>
+#include <printing/printing_plugin.h>
 #include <sentry_flutter/sentry_flutter_plugin.h>
 #include <speech_to_text_windows/speech_to_text_windows.h>
 #include <sqlite3_flutter_libs/sqlite3_flutter_libs_plugin.h>
@@ -27,6 +28,8 @@ void RegisterPlugins(flutter::PluginRegistry* registry) {
       registry->GetRegistrarForPlugin("FlutterSecureStorageWindowsPlugin"));
   PasskeysWindowsPluginRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("PasskeysWindowsPlugin"));
+  PrintingPluginRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("PrintingPlugin"));
   SentryFlutterPluginRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("SentryFlutterPlugin"));
   SpeechToTextWindowsRegisterWithRegistrar(

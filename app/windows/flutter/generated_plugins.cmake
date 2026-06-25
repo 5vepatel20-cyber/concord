@@ -8,6 +8,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   file_selector_windows
   flutter_secure_storage_windows
   passkeys_windows
+  printing
   sentry_flutter
   speech_to_text_windows
   sqlite3_flutter_libs

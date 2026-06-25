@@ -2,10 +2,11 @@
 //
 // Shows:
 //   - Today's date + a "Good morning" greeting (uses the user's first name)
+//   - SYM-06 worsening symptoms card (hidden when nothing to report)
 //   - "Log a symptom" CTA that opens the quick-log bottom sheet
 //   - Today's activity (HealthKit / Health Connect snapshot — optional)
-//   - Recent reports count (placeholder for Step 8)
-//   - Latest Atlas nudge (placeholder for Step 9)
+//   - Recent symptom logs list with top grade
+//   - Latest Atlas nudge
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -456,39 +457,144 @@ class _Section extends StatelessWidget {
   }
 }
 
-class _RecentReportsCard extends ConsumerWidget {
+class _RecentReportsCard extends ConsumerStatefulWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_RecentReportsCard> createState() => _RecentReportsCardState();
+}
+
+class _RecentReportsCardState extends ConsumerState<_RecentReportsCard> {
+  List<ReportSummary>? _reports;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final repo = ref.read(reportRepositoryProvider);
+      final reports = await repo.listRecent(limit: 5);
+      if (mounted) setState(() => _reports = reports);
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final t = Theme.of(context);
+    final reports = _reports;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(Space.s4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text('Recent symptom logs', style: t.textTheme.titleSmall),
+            if (_loading || reports == null || reports.isEmpty) ...[
+              const SizedBox(height: Space.s2),
+              Text(
+                _loading
+                    ? 'Loading…'
+                    : 'No logs yet. Tap below to log your first symptom.',
+                style: t.textTheme.bodyMedium?.copyWith(color: Neutrals.slate),
+              ),
+            ] else ...[
+              const SizedBox(height: Space.s2),
+              ...reports.take(5).map((r) => _ReportRow(report: r)),
+            ],
+            const SizedBox(height: Space.s2),
             Row(
               children: [
-                Icon(Icons.summarize_outlined, color: t.colorScheme.primary),
-                const SizedBox(width: Space.s3),
+                if (reports != null && reports.isNotEmpty)
+                  Expanded(
+                    child: TextButton.icon(
+                      onPressed: () => context.push('/symptom-history'),
+                      icon: const Icon(Icons.history, size: 18),
+                      label: const Text('View all'),
+                    ),
+                  ),
                 Expanded(
-                  child: Text(
-                    'View your symptom summary — a doctor-ready one-pager '
-                    'with heatmap, trends, and medication adherence.',
-                    style: t.textTheme.bodyMedium,
+                  child: Align(
+                    alignment: reports != null && reports.isNotEmpty
+                        ? Alignment.centerRight
+                        : Alignment.center,
+                    child: TextButton.icon(
+                      onPressed: () => context.push('/report/generate'),
+                      icon: const Icon(Icons.summarize_outlined, size: 18),
+                      label: const Text('Generate Summary'),
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: Space.s3),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () => context.push('/report/generate'),
-                icon: const Icon(Icons.summarize_outlined, size: 18),
-                label: const Text('Generate Summary'),
-              ),
-            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReportRow extends ConsumerWidget {
+  const _ReportRow({required this.report});
+  final ReportSummary report;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = Theme.of(context);
+    final dateStr = DateFormat('MMM d, h:mm a').format(report.reportedAt);
+    final gradeColor = switch (report.topGrade) {
+      3 => SeverityColors.severe,
+      2 => SeverityColors.moderate,
+      1 => SeverityColors.mild,
+      _ => Neutrals.slate,
+    };
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: Space.s1),
+      child: InkWell(
+        onTap: () => context.push('/symptom-history'),
+        borderRadius: BorderRadius.circular(Radii.sm),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Space.s1,
+            vertical: Space.s1,
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.check_circle_outline, size: 16, color: gradeColor),
+              const SizedBox(width: Space.s2),
+              Expanded(child: Text(dateStr, style: t.textTheme.bodySmall)),
+              if (report.source != 'self')
+                Padding(
+                  padding: const EdgeInsets.only(right: Space.s1),
+                  child: Text(
+                    report.source,
+                    style: t.textTheme.bodySmall?.copyWith(
+                      color: Neutrals.slate,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: gradeColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(Radii.sm),
+                ),
+                child: Text(
+                  'Grade ${report.topGrade}',
+                  style: t.textTheme.bodySmall?.copyWith(
+                    color: gradeColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
