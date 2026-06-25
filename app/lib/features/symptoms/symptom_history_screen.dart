@@ -329,111 +329,41 @@ class _CalendarHeatmap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final firstDay = DateTime(now.year, now.month, 1);
-    final lastDay = DateTime(now.year, now.month + 1, 0);
-    final startWeekday = firstDay.weekday % 7;
-
     final dayMap = <String, int>{};
     for (final d in days) {
       dayMap[d.date] = d.maxGrade;
     }
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(Space.s4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${_monthNames[now.month - 1]} ${now.year}',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: Space.s3),
-            _buildGrid(dayMap, firstDay, lastDay, startWeekday),
-            const SizedBox(height: Space.s2),
-            _buildLegend(),
-          ],
-        ),
-      ),
-    );
-  }
+    if (days.isEmpty) return const SizedBox.shrink();
 
-  Widget _buildGrid(
-    Map<String, int> dayMap,
-    DateTime firstDay,
-    DateTime lastDay,
-    int startWeekday,
-  ) {
-    final daysInMonth = lastDay.day;
-    final totalCells = startWeekday + daysInMonth;
-    final rows = (totalCells / 7).ceil();
+    final sorted = days.map((d) => d.date).toList()..sort();
+    final firstDate = DateTime.parse(sorted.first);
+    final lastDate = DateTime.parse(sorted.last);
+    final months = _monthsBetween(firstDate, lastDate);
 
     return Column(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: 'SMTWTFS'
-              .split('')
-              .map(
-                (d) => SizedBox(
-                  width: 28,
-                  child: Text(
-                    d,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-                  ),
-                ),
-              )
-              .toList(),
-        ),
-        const SizedBox(height: 4),
-        for (int row = 0; row < rows; row++) ...[
-          if (row > 0) const SizedBox(height: 2),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(7, (col) {
-              final cellIndex = row * 7 + col;
-              final dayNum = cellIndex - startWeekday + 1;
-
-              if (dayNum < 1 || dayNum > daysInMonth) {
-                return const SizedBox(width: 28, height: 28);
-              }
-
-              final dateStr =
-                  '${firstDay.year}-${firstDay.month.toString().padLeft(2, '0')}-${dayNum.toString().padLeft(2, '0')}';
-              final grade = dayMap[dateStr] ?? 0;
-
-              return Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: _gradeColors[grade],
-                  borderRadius: BorderRadius.circular(4),
-                  border: grade > 0
-                      ? Border.all(
-                          color: _gradeTextColors[grade].withValues(alpha: 0.3),
-                        )
-                      : null,
-                ),
-                child: Center(
-                  child: Text(
-                    '$dayNum',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: grade > 0
-                          ? _gradeTextColors[grade]
-                          : Colors.grey.shade700,
-                    ),
-                  ),
-                ),
-              );
-            }),
+        ...months.map(
+          (m) => Padding(
+            padding: const EdgeInsets.only(bottom: Space.s4),
+            child: _MonthCard(year: m.year, month: m.month, dayMap: dayMap),
           ),
-        ],
+        ),
+        _buildLegend(),
       ],
     );
+  }
+
+  /// Generate first-of-month DateTimes for each month in [start, end].
+  List<DateTime> _monthsBetween(DateTime start, DateTime end) {
+    final result = <DateTime>[];
+    var cursor = DateTime(start.year, start.month, 1);
+    final stop = DateTime(end.year, end.month, 1);
+    while (!cursor.isAfter(stop)) {
+      result.add(cursor);
+      cursor = DateTime(cursor.year, cursor.month + 1, 1);
+    }
+    return result;
   }
 
   Widget _buildLegend() {
@@ -474,6 +404,114 @@ class _CalendarHeatmap extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _MonthCard extends StatelessWidget {
+  final int year;
+  final int month;
+  final Map<String, int> dayMap;
+
+  const _MonthCard({
+    required this.year,
+    required this.month,
+    required this.dayMap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final firstDay = DateTime(year, month, 1);
+    final lastDay = DateTime(year, month + 1, 0);
+    final startWeekday = firstDay.weekday % 7;
+    final daysInMonth = lastDay.day;
+    final totalCells = startWeekday + daysInMonth;
+    final rows = (totalCells / 7).ceil();
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(Space.s4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${_monthNames[month - 1]} $year',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: Space.s3),
+            Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: 'SMTWTFS'
+                      .split('')
+                      .map(
+                        (d) => SizedBox(
+                          width: 28,
+                          child: Text(
+                            d,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 4),
+                for (int row = 0; row < rows; row++) ...[
+                  if (row > 0) const SizedBox(height: 2),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: List.generate(7, (col) {
+                      final cellIndex = row * 7 + col;
+                      final dayNum = cellIndex - startWeekday + 1;
+
+                      if (dayNum < 1 || dayNum > daysInMonth) {
+                        return const SizedBox(width: 28, height: 28);
+                      }
+
+                      final dateStr =
+                          '$year-${month.toString().padLeft(2, '0')}-${dayNum.toString().padLeft(2, '0')}';
+                      final grade = dayMap[dateStr] ?? 0;
+
+                      return Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: _gradeColors[grade],
+                          borderRadius: BorderRadius.circular(4),
+                          border: grade > 0
+                              ? Border.all(
+                                  color: _gradeTextColors[grade].withValues(
+                                    alpha: 0.3,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        child: Center(
+                          child: Text(
+                            '$dayNum',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: grade > 0
+                                  ? _gradeTextColors[grade]
+                                  : Colors.grey.shade700,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
