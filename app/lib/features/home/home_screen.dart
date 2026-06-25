@@ -22,13 +22,23 @@ import '../../theme/typography.dart';
 import '../symptoms/quick_log_widget.dart';
 import '../symptoms/symptom_history_screen.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  int _refreshKey = 0;
+
+  Future<void> _onRefresh() async {
+    setState(() => _refreshKey++);
+  }
 
   String _firstNameFromEmail(String? email) {
     if (email == null || email.isEmpty) return 'there';
     final local = email.split('@').first;
-    // strip digits and dot-separators, then take the first chunk
     final first = local
         .split(RegExp(r'[._\d]'))
         .firstWhere((s) => s.isNotEmpty, orElse: () => local);
@@ -36,7 +46,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final t = Theme.of(context);
     final user = ref.watch(currentUserProvider);
     final now = DateTime.now();
@@ -52,8 +62,6 @@ class HomeScreen extends ConsumerWidget {
             icon: const Icon(Icons.logout_outlined),
             tooltip: 'Sign out',
             onPressed: () {
-              // signOut() is wired in auth_controller; for Step 6 we leave the
-              // icon visible but the action is owned by Profile/Settings.
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Use Profile → Sign out to leave.'),
@@ -64,39 +72,46 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            Space.s5,
-            Space.s2,
-            Space.s5,
-            Space.s6,
+        child: RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: ListView(
+            key: ValueKey('home_$_refreshKey'),
+            padding: const EdgeInsets.fromLTRB(
+              Space.s5,
+              Space.s2,
+              Space.s5,
+              Space.s6,
+            ),
+            children: [
+              Text('$greeting, $firstName', style: t.textTheme.headlineMedium),
+              const SizedBox(height: Space.s2),
+              Text(
+                'How are you feeling today?',
+                style: t.textTheme.bodyLarge?.copyWith(color: Neutrals.slate),
+              ),
+              const SizedBox(height: Space.s2),
+              const _PendingSyncBadge(),
+              const SizedBox(height: Space.s2),
+              _WorseningCard(key: ValueKey('wc_$_refreshKey')),
+              const SizedBox(height: Space.s3),
+              const QuickLogWidget(),
+              const SizedBox(height: Space.s3),
+              TextButton.icon(
+                onPressed: () => context.push('/symptom-history'),
+                icon: const Icon(Icons.history, size: 18),
+                label: const Text('View symptom history'),
+              ),
+              const SizedBox(height: Space.s5),
+              const _TodayActivityCard(),
+              const SizedBox(height: Space.s6),
+              _Section(
+                title: 'Recent reports',
+                child: _RecentReportsCard(key: ValueKey('rc_$_refreshKey')),
+              ),
+              const SizedBox(height: Space.s5),
+              _Section(title: 'Atlas says', child: _AtlasNudgeCard()),
+            ],
           ),
-          children: [
-            Text('$greeting, $firstName', style: t.textTheme.headlineMedium),
-            const SizedBox(height: Space.s2),
-            Text(
-              'How are you feeling today?',
-              style: t.textTheme.bodyLarge?.copyWith(color: Neutrals.slate),
-            ),
-            const SizedBox(height: Space.s2),
-            const _PendingSyncBadge(),
-            const SizedBox(height: Space.s2),
-            const _WorseningCard(),
-            const SizedBox(height: Space.s3),
-            const QuickLogWidget(),
-            const SizedBox(height: Space.s3),
-            TextButton.icon(
-              onPressed: () => context.push('/symptom-history'),
-              icon: const Icon(Icons.history, size: 18),
-              label: const Text('View symptom history'),
-            ),
-            const SizedBox(height: Space.s5),
-            const _TodayActivityCard(),
-            const SizedBox(height: Space.s6),
-            _Section(title: 'Recent reports', child: _RecentReportsCard()),
-            const SizedBox(height: Space.s5),
-            _Section(title: 'Atlas says', child: _AtlasNudgeCard()),
-          ],
         ),
       ),
     );
