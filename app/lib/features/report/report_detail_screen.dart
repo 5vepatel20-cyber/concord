@@ -27,7 +27,9 @@ class ReportDetailScreen extends ConsumerWidget {
               return const Center(child: CircularProgressIndicator());
             }
             if (snap.hasError) {
-              return Center(child: Text('Couldn\'t load report: ${snap.error}'));
+              return Center(
+                child: Text('Couldn\'t load report: ${snap.error}'),
+              );
             }
             final detail = snap.data;
             if (detail == null) {
@@ -51,7 +53,10 @@ class _Body extends StatelessWidget {
     final dateFmt = DateFormat('EEEE, MMMM d, y · h:mm a');
     return ListView(
       padding: const EdgeInsets.fromLTRB(
-        Space.s5, Space.s3, Space.s5, Space.s6,
+        Space.s5,
+        Space.s3,
+        Space.s5,
+        Space.s6,
       ),
       children: [
         Row(
@@ -113,7 +118,9 @@ class _Body extends StatelessWidget {
   }
 
   String _metaLine(ReportSummary s) {
-    final parts = <String>['${detail.responses.length} symptom${detail.responses.length == 1 ? '' : 's'}'];
+    final parts = <String>[
+      '${detail.responses.length} symptom${detail.responses.length == 1 ? '' : 's'}',
+    ];
     if (s.recallWindow == 'past_7_days') parts.add('past-week recall');
     if (s.source == 'caregiver') parts.add('logged by caregiver');
     if (s.source == 'voice') parts.add('voice log');
@@ -128,13 +135,44 @@ class _ResponseRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
+    final attr = response.attributionLabel;
     return Padding(
       padding: const EdgeInsets.only(bottom: Space.s2),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SeverityChip(grade: response.compositeGrade, size: SeverityChipSize.small),
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: SeverityChip(
+              grade: response.compositeGrade,
+              size: SeverityChipSize.small,
+            ),
+          ),
           const SizedBox(width: Space.s3),
-          Expanded(child: Text(response.termLabel, style: t.textTheme.bodyMedium)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(response.termLabel, style: t.textTheme.bodyMedium),
+                if (attr != 'Presence only' && attr != 'All attributes normal')
+                  Text(
+                    attr,
+                    style: t.textTheme.bodySmall?.copyWith(
+                      color: Neutrals.slate,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (attr == 'Presence only')
+            Text(
+              attr,
+              style: t.textTheme.bodySmall?.copyWith(
+                color: Neutrals.slate,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
         ],
       ),
     );

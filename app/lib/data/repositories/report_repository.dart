@@ -47,11 +47,71 @@ class ResponseDetail {
     required this.termId,
     required this.termLabel,
     required this.compositeGrade,
+    this.frequency,
+    this.severity,
+    this.interference,
+    this.amount,
+    this.presence,
   });
 
   final String termId;
   final String termLabel;
   final int compositeGrade;
+  final int? frequency;
+  final int? severity;
+  final int? interference;
+  final int? amount;
+  final bool? presence;
+
+  /// Human-readable explanation of which attribute drove the composite grade.
+  /// E.g. "Driven by severity (3)" or "Presence only" or "All attributes normal".
+  String get attributionLabel {
+    if (presence == true) return 'Presence only';
+    if (compositeGrade == 0) return 'All attributes normal';
+
+    // Find the highest attribute value(s).
+    final attrs = <String, int?>{};
+    if (frequency != null) attrs['frequency'] = 1;
+    if (severity != null) attrs['severity'] = 2;
+    if (interference != null) attrs['interference'] = 3;
+    if (amount != null) attrs['amount'] = 4;
+
+    if (attrs.isEmpty) return 'No attributes recorded';
+
+    // Map numeric key back to label.
+    String label(String key) {
+      return switch (key) {
+        'frequency' => 'Frequency',
+        'severity' => 'Severity',
+        'interference' => 'Interference',
+        'amount' => 'Amount',
+        _ => key,
+      };
+    }
+
+    // Find all attributes tied for worst value.
+    final worstValue = compositeGrade == 3
+        ? [
+            ...?[
+              frequency,
+              severity,
+              interference,
+              amount,
+            ].where((v) => v != null && v >= 3),
+          ].fold<int>(0, (max, v) => v! > max ? v : max)
+        : compositeGrade;
+
+    final driving = <String>[];
+    if (frequency == worstValue) driving.add('Frequency');
+    if (severity == worstValue) driving.add('Severity');
+    if (interference == worstValue) driving.add('Interference');
+    if (amount == worstValue) driving.add('Amount');
+
+    if (driving.isEmpty) return 'Grade $compositeGrade';
+    final drivenBy = driving.join(' + ');
+    if (worstValue == 4) return '$drivenBy (4 → 3)';
+    return '$drivenBy ($worstValue)';
+  }
 }
 
 // ── One-pager models (RPT-03) ────────────────────────────────────────
@@ -363,7 +423,9 @@ class ReportRepository {
 
     final responses = await supabase
         .from('symptom_response')
-        .select('term_id, composite_grade')
+        .select(
+          'term_id, composite_grade, frequency, severity, interference, amount, presence',
+        )
         .eq('report_id', reportId);
 
     // Hydrate term labels in one query.
@@ -390,6 +452,11 @@ class ReportRepository {
         termId: tid,
         termLabel: labelById[tid] ?? '(unknown term)',
         compositeGrade: (r['composite_grade'] as num?)?.toInt() ?? 0,
+        frequency: (r['frequency'] as num?)?.toInt(),
+        severity: (r['severity'] as num?)?.toInt(),
+        interference: (r['interference'] as num?)?.toInt(),
+        amount: (r['amount'] as num?)?.toInt(),
+        presence: r['presence'] as bool?,
       );
     }).toList()..sort((a, b) => b.compositeGrade.compareTo(a.compositeGrade));
 
