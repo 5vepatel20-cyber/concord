@@ -46,6 +46,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.dispose();
   }
 
+  void _sendText(String text) {
+    if (text.isEmpty || _busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+      _messages.add(ChatMessage.user(text));
+      _messages.add(ChatMessage.assistantStreaming(''));
+    });
+    _scrollToBottom();
+    _doSend();
+  }
+
   Future<void> _send() async {
     final text = _input.text.trim();
     if (text.isEmpty || _busy) return;
@@ -57,7 +69,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _input.clear();
     });
     _scrollToBottom();
+    _doSend();
+  }
 
+  void _doSend() {
     final cancel = CancelToken();
     _cancel = cancel;
     final stream = ref
@@ -157,7 +172,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         child: Column(
           children: [
             Expanded(
-              child: ListView.builder(
+              child: ListView(
                 controller: _scroll,
                 padding: const EdgeInsets.fromLTRB(
                   Space.s4,
@@ -165,11 +180,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   Space.s4,
                   Space.s2,
                 ),
-                itemCount: _messages.length,
-                itemBuilder: (context, i) {
-                  final m = _messages[i];
-                  return _MessageBubble(message: m);
-                },
+                children: [
+                  ..._messages.map((m) => _MessageBubble(message: m)),
+                  if (_messages.length == 1)
+                    Padding(
+                      padding: const EdgeInsets.only(top: Space.s3),
+                      child: _SuggestionChips(onTap: _sendText),
+                    ),
+                ],
               ),
             ),
             if (_error != null)
@@ -347,6 +365,48 @@ class _Composer extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Prompt suggestions shown before the first user message.
+class _SuggestionChips extends StatelessWidget {
+  const _SuggestionChips({required this.onTap});
+  final ValueChanged<String> onTap;
+
+  static const _suggestions = [
+    'How am I doing compared to last week?',
+    'What should I ask my doctor?',
+    'Prepare me for my next visit',
+    'What does my symptom report show?',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: Space.s1, bottom: Space.s2),
+          child: Text(
+            'Try asking',
+            style: t.textTheme.labelMedium?.copyWith(color: Neutrals.slate),
+          ),
+        ),
+        Wrap(
+          spacing: Space.s2,
+          runSpacing: Space.s1,
+          children: _suggestions
+              .map(
+                (s) => ActionChip(
+                  label: Text(s, style: t.textTheme.bodySmall),
+                  onPressed: () => onTap(s),
+                ),
+              )
+              .toList(),
+        ),
+      ],
     );
   }
 }

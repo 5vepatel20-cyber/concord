@@ -2,6 +2,7 @@
 //
 // Shows:
 //   - Today's date + a "Good morning" greeting (uses the user's first name)
+//   - Quick action buttons: Log, Report, Atlas, Schedule
 //   - SYM-06 worsening symptoms card (hidden when nothing to report)
 //   - ONB-05 next treatment event card (hidden when no upcoming events)
 //   - "Log a symptom" CTA that opens the quick-log bottom sheet
