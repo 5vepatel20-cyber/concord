@@ -571,7 +571,7 @@ class _ReportRow extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: Space.s1),
       child: InkWell(
-        onTap: () => context.push('/symptom-history'),
+        onTap: () => context.push('/report/${report.id}'),
         borderRadius: BorderRadius.circular(Radii.sm),
         child: Padding(
           padding: const EdgeInsets.symmetric(
