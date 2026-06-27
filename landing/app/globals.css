@@ -226,6 +226,13 @@ a:hover {
   margin-bottom: 0;
 }
 
+.email-capture-error {
+  color: var(--color-severe);
+  font-size: 0.85rem;
+  margin-top: var(--space-2);
+  margin-bottom: 0;
+}
+
 .disclaimer {
   padding: var(--space-4) 0;
   text-align: center;

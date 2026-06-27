@@ -8,6 +8,7 @@
   },
   "rewrites": [
     { "source": "/health", "destination": "/api/health" },
-    { "source": "/", "destination": "/api/health" }
+    { "source": "/", "destination": "/api/health" },
+    { "source": "/api/waitlist/subscribe", "destination": "/api/waitlist/subscribe" }
   ]
 }

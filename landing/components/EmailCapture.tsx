@@ -2,17 +2,27 @@
 
 import { useState, type FormEvent } from 'react';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+
 export default function EmailCapture() {
   const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
     setStatus('submitting');
-    // TODO: wire to actual waitlist backend
-    await new Promise((r) => setTimeout(r, 600));
-    setStatus('success');
+    try {
+      const res = await fetch(`${API_URL}/waitlist/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), source: 'landing' }),
+      });
+      if (!res.ok) throw new Error('Failed to subscribe');
+      setStatus('success');
+    } catch {
+      setStatus('error');
+    }
   };
 
   if (status === 'success') {
@@ -47,6 +57,7 @@ export default function EmailCapture() {
           <button type="submit" className="btn-primary" disabled={status === 'submitting'}>
             {status === 'submitting' ? 'Joining...' : 'Join waitlist'}
           </button>
+          {status === 'error' && <p className="email-capture-error">Could not subscribe. Try again.</p>}
         </form>
       </div>
     </section>
