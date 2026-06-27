@@ -106,7 +106,7 @@ export class VertexAIProvider implements AIProvider {
         maxOutputTokens: req.maxOutputTokens ?? 1024,
         temperature: req.temperature ?? 0.2,
         responseMimeType: "application/json",
-        responseSchema: req.schema as Record<string, unknown>,
+        responseSchema: req.schema as unknown as Record<string, unknown>,
       },
     });
 

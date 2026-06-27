@@ -49,6 +49,8 @@ class DocumentRepository {
 
   Future<DocumentDecodeResult> decode({
     required String ocrText,
+    String? imageBase64,
+    String imageMime = 'image/jpeg',
     String kind = 'other',
     String readingLevel = 'normal',
   }) async {
@@ -58,6 +60,16 @@ class DocumentRepository {
       throw StateError('Cannot decode documents without an auth session');
     }
 
+    final body = <String, dynamic>{
+      'ocr_text': ocrText,
+      'kind': kind,
+      'reading_level': readingLevel,
+    };
+    if (imageBase64 != null) {
+      body['image_base64'] = imageBase64;
+      body['image_mime'] = imageMime;
+    }
+
     final response = await http
         .post(
           Uri.parse('$apiBase/api/documents/decode'),
@@ -65,11 +77,7 @@ class DocumentRepository {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ${session.accessToken}',
           },
-          body: jsonEncode({
-            'ocr_text': ocrText,
-            'kind': kind,
-            'reading_level': readingLevel,
-          }),
+          body: jsonEncode(body),
         )
         .timeout(const Duration(seconds: 30));
 

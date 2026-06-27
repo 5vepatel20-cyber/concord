@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/monitoring/posthog_init.dart';
 import '../../core/result/result.dart';
 import '../../data/supabase/supabase_provider.dart';
 
@@ -128,6 +129,10 @@ class AuthController extends AsyncNotifier<AuthSessionView> {
         emailConfirmed: user.emailConfirmedAt != null,
       );
       state = AsyncData(view);
+      capturePosthogEvent(
+        'account_created',
+        properties: {'is_email_confirmed': user.emailConfirmedAt != null},
+      );
       return Ok(view);
     } on AuthException catch (e) {
       return Err(

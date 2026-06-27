@@ -45,10 +45,21 @@ export interface AIProvider {
   chatJSON<T>(req: ChatRequest & { schema: JSONSchema }): Promise<T>;
 }
 
+/** A single property within a JSON Schema node. Recursive to support nested
+ *  object and array schemas for structured LLM output. */
+export interface JSONSchemaProperty {
+  type: string;
+  description?: string;
+  enum?: string[];
+  items?: JSONSchemaProperty;
+  properties?: Record<string, JSONSchemaProperty>;
+  required?: string[];
+}
+
 /** Minimal JSON Schema type — what the LLM needs to see to produce structured output. */
 export interface JSONSchema {
   type: "object";
-  properties: Record<string, { type: string; description?: string; enum?: string[] }>;
+  properties: Record<string, JSONSchemaProperty>;
   required?: string[];
   additionalProperties?: boolean;
 }

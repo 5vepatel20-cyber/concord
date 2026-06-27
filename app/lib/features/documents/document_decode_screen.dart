@@ -34,10 +34,18 @@ class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
     super.dispose();
   }
 
+  static const _maxImageBytes = 10 * 1024 * 1024;
+
   Future<void> _pickImage() async {
     final xfile = await _picker.pickImage(source: ImageSource.camera);
     if (xfile != null) {
       final bytes = await xfile.readAsBytes();
+      if (bytes.length > _maxImageBytes) {
+        setState(
+          () => _error = 'Image is too large. Please use an image under 10 MB.',
+        );
+        return;
+      }
       setState(() {
         _imageBytes = bytes;
         _imageBase64 = base64Encode(bytes);
@@ -49,6 +57,12 @@ class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
     final xfile = await _picker.pickImage(source: ImageSource.gallery);
     if (xfile != null) {
       final bytes = await xfile.readAsBytes();
+      if (bytes.length > _maxImageBytes) {
+        setState(
+          () => _error = 'Image is too large. Please use an image under 10 MB.',
+        );
+        return;
+      }
       setState(() {
         _imageBytes = bytes;
         _imageBase64 = base64Encode(bytes);
@@ -62,7 +76,7 @@ class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
       setState(() => _error = 'Paste medical text or take a photo to decode.');
       return;
     }
-    if (text.isEmpty && text.length < 10 && _imageBase64 == null) {
+    if (text.length < 10 && _imageBase64 == null) {
       setState(
         () =>
             _error = 'Please provide at least 10 characters or a clear photo.',
@@ -93,7 +107,66 @@ class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
               ocrText: text,
               imageBase64: _imageBase64,
             )
-          : await repo.decode(ocrText: text);
+          : await repo.decode(ocrText: text, imageBase64: _imageBase64);
+      if (!mounted) return;
+      capturePosthogEvent(
+        'decode_completed',
+        properties: {
+          'is_anon': isAnon,
+          'char_length': text.length,
+          'has_image': _imageBase64 != null,
+        },
+      );
+      setState(() {
+        _result = result;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      capturePosthogEvent(
+        'decode_errored',
+        properties: {
+          'error': e.runtimeType.toString(),
+          'char_length': text.length,
+        },
+      );
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+    if (text.length < 10 && _imageBase64 == null) {
+      setState(
+        () =>
+            _error = 'Please provide at least 10 characters or a clear photo.',
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _result = null;
+    });
+
+    capturePosthogEvent(
+      'decode_started',
+      properties: {
+        'char_length': text.length,
+        'has_image': _imageBase64 != null,
+      },
+    );
+
+    try {
+      final repo = ref.read(documentRepositoryProvider);
+      final session = ref.read(supabaseClientProvider).auth.currentSession;
+      final isAnon = session == null;
+      final result = isAnon
+          ? await repo.decodeAnonymously(
+              ocrText: text,
+              imageBase64: _imageBase64,
+            )
+          : await repo.decode(ocrText: text, imageBase64: _imageBase64);
       capturePosthogEvent(
         'decode_completed',
         properties: {

@@ -14,6 +14,7 @@ import { z } from "zod";
 import { requireUser } from "../../_lib/auth.js";
 import { serviceClient } from "../../_lib/supabase.js";
 import { getAIProvider } from "../../_lib/ai/provider.js";
+import { ocrFromImage } from "../../_lib/ai/ocr.js";
 import { initSentry, Sentry } from "../../_lib/sentry.js";
 import { corsed, preflight, corsedJsonError } from "../../_lib/cors.js";
 
@@ -23,7 +24,9 @@ export const OPTIONS = (req: Request): Response => preflight(req);
 
 const BodySchema = z.object({
   kind: z.enum(["discharge_summary", "lab_result", "imaging", "visit_note", "other"]).default("other"),
-  ocr_text: z.string().min(10).max(50000),
+  ocr_text: z.string().min(10).max(50000).optional(),
+  image_base64: z.string().min(20).optional(),
+  image_mime: z.string().default("image/jpeg"),
   storage_url: z.string().url().optional(),
   reading_level: z.enum(["kid", "simple", "normal"]).default("normal"),
 });
@@ -60,6 +63,20 @@ export const POST = async (req: Request): Promise<Response> => {
     return corsedJsonError(req, 400, "bad_request", e instanceof Error ? e.message : "Invalid JSON body");
   }
 
+  // If an image was provided but no text, run OCR first.
+  let text = body.ocr_text;
+  if (!text && body.image_base64) {
+    try {
+      text = await ocrFromImage(body.image_base64, body.image_mime);
+    } catch (e) {
+      return corsedJsonError(req, 500, "ocr_failed", e instanceof Error ? e.message : "OCR processing error");
+    }
+  }
+
+  if (!text || text.length < 10) {
+    return corsedJsonError(req, 400, "bad_request", "Provide at least 10 characters of text or a legible image.");
+  }
+
   const ai = getAIProvider();
 
   const readingLevelInstruction =
@@ -79,7 +96,7 @@ export const POST = async (req: Request): Promise<Response> => {
     extraction = await ai.chatJSON<DecodeResult>({
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: body.ocr_text },
+        { role: "user", content: text! },
       ],
       model: "pro",
       temperature: 0.3,
@@ -87,11 +104,25 @@ export const POST = async (req: Request): Promise<Response> => {
         type: "object",
         properties: {
           summary: { type: "string", description: "Plain-language summary of the document (4-6 sentences)" },
-          extracted_labs: { type: "string", description: "JSON array of extracted lab values with name, value, unit, reference_range, flag" },
-          medications: { type: "string", description: "JSON array of medication names mentioned" },
-          diagnoses: { type: "string", description: "JSON array of diagnoses or conditions mentioned" },
-          suggested_questions: { type: "string", description: "JSON array of 2-3 questions for the care team" },
-          critical_flags: { type: "string", description: "JSON array of critically abnormal findings requiring urgent attention" },
+          extracted_labs: {
+            type: "array",
+            description: "Extracted lab values with name, value, unit, reference_range, flag",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string", description: "Lab test name" },
+                value: { type: "string", description: "Measured value" },
+                unit: { type: "string", description: "Unit of measurement" },
+                reference_range: { type: "string", description: "Normal reference range" },
+                flag: { type: "string", enum: ["normal", "high", "low", "critical_high", "critical_low"], description: "Flag indicating if result is abnormal" },
+              },
+              required: ["name", "value", "unit", "reference_range", "flag"],
+            },
+          },
+          medications: { type: "array", items: { type: "string" }, description: "Medication names mentioned" },
+          diagnoses: { type: "array", items: { type: "string" }, description: "Diagnoses or conditions mentioned" },
+          suggested_questions: { type: "array", items: { type: "string" }, description: "2-3 questions for the care team" },
+          critical_flags: { type: "array", items: { type: "string" }, description: "Critically abnormal findings requiring urgent attention" },
           doc_type: { type: "string", description: "The likely document type" },
         },
         required: ["summary", "extracted_labs", "medications", "diagnoses", "suggested_questions", "critical_flags", "doc_type"],
@@ -110,7 +141,7 @@ export const POST = async (req: Request): Promise<Response> => {
       patient_id: user.id,
       kind: body.kind,
       storage_url: body.storage_url ?? `manual://${user.id}/${Date.now()}`,
-      ocr_text: body.ocr_text,
+      ocr_text: text,
       ai_plain_summary: extraction.summary,
       extracted_values: extraction as unknown as Record<string, unknown>,
     })
