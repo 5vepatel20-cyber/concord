@@ -89,22 +89,34 @@ class DocumentRepository {
 
   /// No-login decode for the viral wedge. Calls the public endpoint which does
   /// not require auth and does not persist the document.
+  ///
+  /// If [imageBase64] is provided (and [ocrText] is empty), the server runs
+  /// OCR on the image before decoding. If both are provided, [ocrText] is
+  /// used directly.
   Future<DocumentDecodeResult> decodeAnonymously({
-    required String ocrText,
+    String ocrText = '',
+    String? imageBase64,
+    String imageMime = 'image/jpeg',
     String readingLevel = 'normal',
   }) async {
     final apiBase = _ref.read(apiBaseUrlProvider);
+
+    final body = <String, dynamic>{'reading_level': readingLevel};
+    if (ocrText.isNotEmpty) {
+      body['ocr_text'] = ocrText;
+    }
+    if (imageBase64 != null) {
+      body['image_base64'] = imageBase64;
+      body['image_mime'] = imageMime;
+    }
 
     final response = await http
         .post(
           Uri.parse('$apiBase/api/documents/decode-public'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'ocr_text': ocrText,
-            'reading_level': readingLevel,
-          }),
+          body: jsonEncode(body),
         )
-        .timeout(const Duration(seconds: 30));
+        .timeout(const Duration(seconds: 45));
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw HttpException(
@@ -112,11 +124,11 @@ class DocumentRepository {
       );
     }
 
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final extraction = body['extraction'] as Map<String, dynamic>;
+    final res = jsonDecode(response.body) as Map<String, dynamic>;
+    final extraction = res['extraction'] as Map<String, dynamic>;
     return DocumentDecodeResult(
       documentId: 'anon',
-      summary: body['summary'] as String,
+      summary: res['summary'] as String,
       extraction: extraction,
     );
   }

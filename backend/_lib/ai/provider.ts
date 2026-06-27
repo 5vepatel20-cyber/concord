@@ -7,12 +7,15 @@ import { getEnv } from "../env.js";
 import type { AIProvider, ChatChunk, ChatRequest } from "./types.js";
 import { GeminiProvider } from "./gemini.js";
 import { ClaudeProvider } from "./claude.js";
+import { VertexAIProvider } from "./vertex.js";
 
 let primary: AIProvider | null = null;
 let fallback: AIProvider | null = null;
 
 function buildProvider(name: string): AIProvider {
   switch (name) {
+    case "vertex":
+      return new VertexAIProvider();
     case "claude":
       return new ClaudeProvider();
     case "gemini":

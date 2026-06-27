@@ -57,13 +57,22 @@ Future<Uint8List> buildOnePagerPdf(OnePagerReport report) async {
         child: pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text(
-              'Concord',
-              style: pw.TextStyle(
-                fontSize: 20,
-                fontWeight: pw.FontWeight.bold,
-                color: concordBlue,
-              ),
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'Concord',
+                  style: pw.TextStyle(
+                    fontSize: 20,
+                    fontWeight: pw.FontWeight.bold,
+                    color: concordBlue,
+                  ),
+                ),
+                pw.Text(
+                  'Understand your health',
+                  style: pw.TextStyle(fontSize: 8, color: slate),
+                ),
+              ],
             ),
             pw.Text(
               'Symptom Report — ${report.periodDays}-day summary',
@@ -74,16 +83,30 @@ Future<Uint8List> buildOnePagerPdf(OnePagerReport report) async {
       ),
       footer: (context) => pw.Container(
         margin: const pw.EdgeInsets.only(top: 8),
-        child: pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        child: pw.Column(
           children: [
-            pw.Text(
-              'Generated ${report.generatedAt}',
-              style: pw.TextStyle(fontSize: 8, color: hint),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'Generated ${report.generatedAt}',
+                  style: pw.TextStyle(fontSize: 8, color: hint),
+                ),
+                pw.Text(
+                  'Concord — understand your health',
+                  style: pw.TextStyle(fontSize: 8, color: hint),
+                ),
+              ],
             ),
+            pw.SizedBox(height: 4),
             pw.Text(
-              'Concord — clinical symptom tracker',
-              style: pw.TextStyle(fontSize: 8, color: hint),
+              'Concord is not a medical device. It helps you track symptoms '
+              'between visits. Always follow your care team\'s guidance.',
+              style: pw.TextStyle(
+                fontSize: 7,
+                color: hint,
+                fontStyle: pw.FontStyle.italic,
+              ),
             ),
           ],
         ),

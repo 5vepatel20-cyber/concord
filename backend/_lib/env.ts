@@ -5,10 +5,12 @@ import { z } from "zod";
 
 const EnvSchema = z.object({
   // AI
-  GEMINI_API_KEY: z.string().min(20),
+  GEMINI_API_KEY: z.string().min(20).optional(),
   ANTHROPIC_API_KEY: z.string().min(20).optional(),
-  AI_PRIMARY: z.enum(["gemini", "claude"]).default("gemini"),
-  AI_FALLBACK: z.enum(["gemini", "claude"]).optional(),
+  VERTEX_PROJECT_ID: z.string().min(1).optional(),
+  VERTEX_LOCATION: z.string().default("us-central1"),
+  AI_PRIMARY: z.enum(["gemini", "claude", "vertex"]).default("claude"),
+  AI_FALLBACK: z.enum(["gemini", "claude", "vertex"]).optional(),
 
   // Supabase
   SUPABASE_URL: z.string().url(),

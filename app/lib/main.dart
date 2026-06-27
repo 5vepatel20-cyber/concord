@@ -19,6 +19,7 @@ import 'core/monitoring/posthog_init.dart' show initPosthog;
 import 'core/monitoring/sentry_init.dart';
 import 'core/notifications/medication_reminder_service.dart';
 import 'core/notifications/notification_service.dart';
+import 'core/notifications/reengagement_service.dart';
 import 'core/storage/database_provider.dart';
 import 'core/sync/sync_service.dart';
 import 'core/widgets/symptom_widget_data.dart';
@@ -107,6 +108,11 @@ Future<void> main() async {
         debugPrint('[med-reminder] boot resync failed: $e');
       }
     }();
+
+    // Schedule re-engagement notification if the user hasn't logged
+    // symptoms in >48 hours.
+    // ignore: discarded_futures
+    scheduleReengagementIfNeeded();
 
     runApp(
       UncontrolledProviderScope(

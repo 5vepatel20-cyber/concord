@@ -1,12 +1,18 @@
 // POST /api/documents/decode-public — no auth required.
-// Viral wedge: lets anyone paste medical text and get a plain-language decode
-// without signing up. No document is persisted. Results are returned to the
-// client only (for Share Card generation or display).
+// Viral wedge: lets anyone paste medical text (or snap a photo) and get a
+// plain-language decode without signing up. No document is persisted.
+// Results are returned to the client only (for Share Card generation or display).
+//
+// Supports two modes:
+//   1. Text-only: pass `ocr_text` with the medical text.
+//   2. Image OCR: pass `image_base64` + `image_mime`; the server runs OCR
+//      using Gemini's vision capabilities, then decodes the extracted text.
 //
 // Rate-limited at the CDN level. Production should enforce a per-IP cap.
 
 import { z } from "zod";
 import { getAIProvider } from "../../_lib/ai/provider.js";
+import { ocrFromImage } from "../../_lib/ai/ocr.js";
 import { initSentry, Sentry } from "../../_lib/sentry.js";
 import { corsed, preflight, corsedJsonError } from "../../_lib/cors.js";
 
@@ -15,7 +21,9 @@ export const config = { runtime: "nodejs" };
 export const OPTIONS = (req: Request): Response => preflight(req);
 
 const BodySchema = z.object({
-  ocr_text: z.string().min(10).max(50000),
+  ocr_text: z.string().min(10).max(50000).optional(),
+  image_base64: z.string().min(20).optional(),
+  image_mime: z.string().default("image/jpeg"),
   reading_level: z.enum(["kid", "simple", "normal"]).default("normal"),
 });
 
@@ -27,6 +35,20 @@ export const POST = async (req: Request): Promise<Response> => {
     body = BodySchema.parse(await req.json());
   } catch (e) {
     return corsedJsonError(req, 400, "bad_request", e instanceof Error ? e.message : "Invalid JSON body");
+  }
+
+  // If an image was provided but no text, run OCR first.
+  let text = body.ocr_text;
+  if (!text && body.image_base64) {
+    try {
+      text = await ocrFromImage(body.image_base64, body.image_mime);
+    } catch (e) {
+      return corsedJsonError(req, 500, "ocr_failed", e instanceof Error ? e.message : "OCR processing error");
+    }
+  }
+
+  if (!text || text.length < 10) {
+    return corsedJsonError(req, 400, "bad_request", "Provide at least 10 characters of text or a legible image.");
   }
 
   const ai = getAIProvider();
@@ -56,7 +78,7 @@ export const POST = async (req: Request): Promise<Response> => {
     extraction = await ai.chatJSON({
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: body.ocr_text },
+        { role: "user", content: text },
       ],
       model: "pro",
       temperature: 0.3,

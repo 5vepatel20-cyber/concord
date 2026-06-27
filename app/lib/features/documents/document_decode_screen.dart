@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -22,6 +23,7 @@ class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
   final _textController = TextEditingController();
   final _picker = ImagePicker();
   File? _selectedImage;
+  String? _imageBase64;
   bool _isLoading = false;
   DocumentDecodeResult? _result;
   String? _error;
@@ -35,21 +37,38 @@ class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
   Future<void> _pickImage() async {
     final xfile = await _picker.pickImage(source: ImageSource.camera);
     if (xfile != null) {
-      setState(() => _selectedImage = File(xfile.path));
+      final file = File(xfile.path);
+      final bytes = await file.readAsBytes();
+      setState(() {
+        _selectedImage = file;
+        _imageBase64 = base64Encode(bytes);
+      });
     }
   }
 
   Future<void> _pickGallery() async {
     final xfile = await _picker.pickImage(source: ImageSource.gallery);
     if (xfile != null) {
-      setState(() => _selectedImage = File(xfile.path));
+      final file = File(xfile.path);
+      final bytes = await file.readAsBytes();
+      setState(() {
+        _selectedImage = file;
+        _imageBase64 = base64Encode(bytes);
+      });
     }
   }
 
   Future<void> _decode() async {
     final text = _textController.text.trim();
-    if (text.isEmpty) {
-      setState(() => _error = 'Paste or type the medical text to decode.');
+    if (text.isEmpty && _imageBase64 == null) {
+      setState(() => _error = 'Paste medical text or take a photo to decode.');
+      return;
+    }
+    if (text.isEmpty && text.length < 10 && _imageBase64 == null) {
+      setState(
+        () =>
+            _error = 'Please provide at least 10 characters or a clear photo.',
+      );
       return;
     }
 
@@ -61,7 +80,10 @@ class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
 
     capturePosthogEvent(
       'decode_started',
-      properties: {'char_length': text.length},
+      properties: {
+        'char_length': text.length,
+        'has_image': _imageBase64 != null,
+      },
     );
 
     try {
@@ -69,11 +91,18 @@ class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
       final session = ref.read(supabaseClientProvider).auth.currentSession;
       final isAnon = session == null;
       final result = isAnon
-          ? await repo.decodeAnonymously(ocrText: text)
+          ? await repo.decodeAnonymously(
+              ocrText: text,
+              imageBase64: _imageBase64,
+            )
           : await repo.decode(ocrText: text);
       capturePosthogEvent(
         'decode_completed',
-        properties: {'is_anon': isAnon, 'char_length': text.length},
+        properties: {
+          'is_anon': isAnon,
+          'char_length': text.length,
+          'has_image': _imageBase64 != null,
+        },
       );
       setState(() {
         _result = result;

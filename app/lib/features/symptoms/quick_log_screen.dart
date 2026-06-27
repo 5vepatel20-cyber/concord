@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/notifications/reengagement_service.dart';
 import '../../core/result/result.dart';
 import '../../core/storage/database_provider.dart';
 import '../../core/voice/speech_service.dart';
@@ -294,6 +295,9 @@ class _QuickLogFormState extends ConsumerState<_QuickLogForm> {
             await SymptomWidgetService.updateFromDatabase(db);
           } catch (_) {}
         }();
+        // Reset the re-engagement timer.
+        // ignore: discarded_futures
+        recordSymptomLog();
         if (value.emergencyGuidance != null) {
           setState(() => _emergencyGuidance = value.emergencyGuidance);
         } else {
