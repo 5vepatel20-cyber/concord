@@ -1,10 +1,14 @@
 // PostHog initialization.
 //
-// Privacy posture (SPEC.md §11):
+// Privacy posture:
+//   - PostHog is always initialized for anonymous event capture on the viral
+//     funnel (landing page views, decode attempts). No PHI is ever sent.
 //   - `personProfiles: 'identifiedOnly'` — never auto-attach a profile; we
 //     only identify after the user explicitly signs in AND has opted in.
-//   - Default opt-in is OFF (see settings_storage.dart). Until the user
-//     toggles it on, capture is a no-op.
+//   - Even though PostHog is initialized at startup, `capturePosthogEvent`
+//     strips any key that could be PHI (see _phiKey).
+//   - Default opt-in is OFF (see settings_storage.dart). The identify call
+//     is gated on that toggle.
 //   - No PHI in event names or properties. Use generic verbs.
 //
 // Reference:
@@ -12,11 +16,8 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/env.dart';
-
-const String _kPosthogOptIn = 'posthog_opt_in';
 
 /// Deny-list for event property keys. Matched case-insensitively so a sloppy
 /// caller passing 'Name' or 'SYMPTOM' still gets caught.
@@ -28,32 +29,20 @@ final RegExp _phiKey = RegExp(
   caseSensitive: false,
 );
 
-/// Reads the opt-in flag directly from SharedPreferences, since this runs at
-/// app startup before the Riverpod container exists.
-Future<bool> _readPosthogOptIn() async {
-  final prefs = await SharedPreferences.getInstance();
-  return prefs.getBool(_kPosthogOptIn) ?? false;
-}
-
-/// Initializes PostHog if the user has opted in. No-op otherwise.
+/// Initializes PostHog for anonymous event capture on the viral funnel.
 ///
-/// Returns true if PostHog was started, false if it was skipped.
-Future<bool> initPosthogIfOptedIn() async {
+/// Always runs at startup even before the user has opted in, so we can track
+/// landing page views and decode attempts. `personProfiles: identifiedOnly`
+/// prevents automatic profile creation for anonymous visitors.
+///
+/// Returns true if PostHog was started, false if the API key is missing.
+Future<bool> initPosthog() async {
   final key = AppEnv.posthogApiKey;
   if (key.isEmpty) {
     debugPrint('[posthog] API key empty — analytics disabled.');
     return false;
   }
 
-  final optedIn = await _readPosthogOptIn();
-  if (!optedIn) {
-    debugPrint('[posthog] user has not opted in — analytics disabled.');
-    return false;
-  }
-
-  // The class is `Posthog` (lowercase 'o') per the public package API; the
-  // factory constructor returns the singleton. `host` is a public field on
-  // PostHogConfig (no named constructor param), so we set it after building.
   await Posthog().setup(
     PostHogConfig(key)
       ..host = AppEnv.posthogHost

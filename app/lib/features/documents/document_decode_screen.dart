@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/monitoring/posthog_init.dart';
 import '../../data/repositories/document_repository.dart';
 import '../../data/supabase/supabase_provider.dart';
 import '../../theme/tokens.dart';
+import '../../widgets/share_card.dart';
 
 class DocumentDecodeScreen extends ConsumerStatefulWidget {
   const DocumentDecodeScreen({super.key});
@@ -57,17 +59,34 @@ class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
       _result = null;
     });
 
+    capturePosthogEvent(
+      'decode_started',
+      properties: {'char_length': text.length},
+    );
+
     try {
       final repo = ref.read(documentRepositoryProvider);
       final session = ref.read(supabaseClientProvider).auth.currentSession;
-      final result = session != null
-          ? await repo.decode(ocrText: text)
-          : await repo.decodeAnonymously(ocrText: text);
+      final isAnon = session == null;
+      final result = isAnon
+          ? await repo.decodeAnonymously(ocrText: text)
+          : await repo.decode(ocrText: text);
+      capturePosthogEvent(
+        'decode_completed',
+        properties: {'is_anon': isAnon, 'char_length': text.length},
+      );
       setState(() {
         _result = result;
         _isLoading = false;
       });
     } catch (e) {
+      capturePosthogEvent(
+        'decode_errored',
+        properties: {
+          'error': e.runtimeType.toString(),
+          'char_length': text.length,
+        },
+      );
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -179,6 +198,8 @@ class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
               if (_result != null) ...[
                 const SizedBox(height: Space.s5),
                 _ResultCard(result: _result!),
+                const SizedBox(height: Space.s4),
+                _ShareAction(result: _result!),
               ],
             ],
           ),
@@ -396,5 +417,73 @@ class _ResultCard extends StatelessWidget {
         ],
       ],
     );
+  }
+}
+
+class _ShareAction extends ConsumerStatefulWidget {
+  const _ShareAction({required this.result});
+
+  final DocumentDecodeResult result;
+
+  @override
+  ConsumerState<_ShareAction> createState() => _ShareActionState();
+}
+
+class _ShareActionState extends ConsumerState<_ShareAction> {
+  final _controller = ShareCardController();
+  bool _saving = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+
+    return Column(
+      children: [
+        RepaintBoundary(
+          key: _controller.repaintKey,
+          child: ShareCard(
+            summary: widget.result.summary,
+            docType: widget.result.docType,
+            criticalFlagCount: widget.result.criticalFlags.length,
+          ),
+        ),
+        const SizedBox(height: Space.s3),
+        SizedBox(
+          width: double.infinity,
+          height: 44,
+          child: OutlinedButton.icon(
+            onPressed: _saving ? null : _onShare,
+            icon: _saving
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.download_outlined, size: 18),
+            label: Text(_saving ? 'Generating...' : 'Download share image'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _onShare() async {
+    setState(() => _saving = true);
+    try {
+      await _controller.downloadPng();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Share image downloaded.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not generate share image.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 }

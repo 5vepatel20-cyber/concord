@@ -15,7 +15,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
 import 'core/config/env.dart';
-import 'core/monitoring/posthog_init.dart';
+import 'core/monitoring/posthog_init.dart' show initPosthog;
 import 'core/monitoring/sentry_init.dart';
 import 'core/notifications/medication_reminder_service.dart';
 import 'core/notifications/notification_service.dart';
@@ -50,10 +50,11 @@ Future<void> main() async {
       ),
     );
 
-    // PostHog: opt-in only, no-op until the user toggles it on.
-    // Runs after Supabase so we can read the same SharedPreferences the
-    // settings controller will later watch.
-    await initPosthogIfOptedIn();
+    // PostHog: always initialized for anonymous viral-funnel event capture.
+    // `personProfiles: identifiedOnly` prevents automatic profile creation
+    // for anonymous visitors. The identify call is gated on user opt-in
+    // (settings.posthogOptIn) and happens in auth listeners.
+    await initPosthog();
 
     final container = ProviderContainer(
       overrides: [

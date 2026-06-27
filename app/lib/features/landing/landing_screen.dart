@@ -1,11 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/monitoring/posthog_init.dart';
 import '../../theme/tokens.dart';
 import '../../theme/typography.dart';
 
-class LandingScreen extends StatelessWidget {
+class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
+
+  @override
+  State<LandingScreen> createState() => _LandingScreenState();
+}
+
+class _LandingScreenState extends State<LandingScreen> {
+  @override
+  void initState() {
+    super.initState();
+    capturePosthogEvent('landing_page_view');
+  }
 
   @override
   Widget build(BuildContext context) {
