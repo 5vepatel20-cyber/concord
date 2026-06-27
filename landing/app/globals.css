@@ -175,6 +175,57 @@ a:hover {
   font-size: 0.85rem;
 }
 
+.email-capture {
+  padding: var(--space-8) 0;
+}
+
+.email-capture-card {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: var(--space-6);
+  background: var(--color-primary-container);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+
+.email-capture-card h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: var(--space-2);
+}
+
+.email-capture-card p {
+  color: var(--color-slate);
+  font-size: 0.95rem;
+  margin-bottom: var(--space-4);
+}
+
+.email-capture-form {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.email-capture-form input {
+  flex: 1;
+  padding: var(--space-3);
+  border: 1.5px solid #d1d5db;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.email-capture-form input:focus {
+  border-color: var(--color-primary);
+}
+
+.email-capture-success {
+  color: var(--color-on-surface);
+  font-weight: 500;
+  margin-bottom: 0;
+}
+
 .disclaimer {
   padding: var(--space-4) 0;
   text-align: center;

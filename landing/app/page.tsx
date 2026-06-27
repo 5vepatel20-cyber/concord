@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import EmailCapture from '../components/EmailCapture';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://concord.so';
 
@@ -76,6 +77,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <EmailCapture />
 
       <section className="disclaimer container">
         <p>

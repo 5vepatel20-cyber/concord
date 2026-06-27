@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/monitoring/posthog_init.dart';
@@ -197,6 +198,7 @@ class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
+    final session = ref.read(supabaseClientProvider).auth.currentSession;
 
     return Scaffold(
       appBar: AppBar(
@@ -303,6 +305,10 @@ class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
                 _ResultCard(result: _result!),
                 const SizedBox(height: Space.s4),
                 _ShareAction(result: _result!),
+                if (session == null) ...[
+                  const SizedBox(height: Space.s5),
+                  const _SignupPrompt(),
+                ],
               ],
             ],
           ),
@@ -519,6 +525,59 @@ class _ResultCard extends StatelessWidget {
             ),
         ],
       ],
+    );
+  }
+}
+
+class _SignupPrompt extends StatelessWidget {
+  const _SignupPrompt();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(Space.s5),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            t.colorScheme.primaryContainer,
+            t.colorScheme.primaryContainer.withValues(alpha: 0.4),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(Radii.lg),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.trending_up, size: 28, color: t.colorScheme.primary),
+          const SizedBox(height: Space.s2),
+          Text(
+            'Track symptoms over time',
+            style: t.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: Space.s1),
+          Text(
+            'Create a free account to log daily symptoms, spot worsening '
+            'trends, and share reports with your care team.',
+            style: t.textTheme.bodyMedium?.copyWith(color: Neutrals.slate),
+          ),
+          const SizedBox(height: Space.s4),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: FilledButton.icon(
+              onPressed: () => context.push('/sign-up'),
+              icon: const Icon(Icons.person_add_outlined),
+              label: const Text('Create free account'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
