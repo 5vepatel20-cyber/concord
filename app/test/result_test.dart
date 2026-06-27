@@ -66,8 +66,11 @@ void main() {
     });
 
     test('maps database error codes to database', () {
-      for (final code in
-          ['term_lookup_failed', 'report_insert_failed', 'response_insert_failed']) {
+      for (final code in [
+        'term_lookup_failed',
+        'report_insert_failed',
+        'response_insert_failed',
+      ]) {
         final err = AppError.fromBackend({
           'error': {'code': code, 'message': 'no'},
         });

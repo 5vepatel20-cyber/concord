@@ -19,9 +19,7 @@ class _FakeClient extends http.BaseClient {
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
-    final stream = Stream<List<int>>.fromIterable(
-      [utf8.encode(body)],
-    );
+    final stream = Stream<List<int>>.fromIterable([utf8.encode(body)]);
     return http.StreamedResponse(
       stream,
       200,
@@ -125,16 +123,15 @@ void main() {
             signal: cancel,
           )
           .listen((e) {
-        events.add(e);
-        if (events.length == 2) cancel.cancel();
-      });
+            events.add(e);
+            if (events.length == 2) cancel.cancel();
+          });
       // Pump microtasks so all bytes flow before we assert.
       await Future<void>.delayed(const Duration(milliseconds: 50));
       await sub.cancel();
       // We should have at most the first two deltas.
       expect(events.length, lessThanOrEqualTo(2));
-      expect(events.whereType<SseDelta>().map((e) => e.text),
-          contains('a'));
+      expect(events.whereType<SseDelta>().map((e) => e.text), contains('a'));
     });
 
     test('ignores comment lines and blank data sections', () async {

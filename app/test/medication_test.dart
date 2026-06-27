@@ -88,7 +88,10 @@ void main() {
       // toJson. We assert that explicitly.
       final back = AdherenceEvent.fromJson(e.toJson());
       expect(back.status, AdherenceStatus.taken);
-      expect(back.scheduledFor.toIso8601String(), e.scheduledFor.toIso8601String());
+      expect(
+        back.scheduledFor.toIso8601String(),
+        e.scheduledFor.toIso8601String(),
+      );
       expect(back.loggedAt?.toIso8601String(), e.loggedAt!.toIso8601String());
     });
 

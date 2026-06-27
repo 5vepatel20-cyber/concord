@@ -86,4 +86,38 @@ class DocumentRepository {
       extraction: body['extraction'] as Map<String, dynamic>,
     );
   }
+
+  /// No-login decode for the viral wedge. Calls the public endpoint which does
+  /// not require auth and does not persist the document.
+  Future<DocumentDecodeResult> decodeAnonymously({
+    required String ocrText,
+    String readingLevel = 'normal',
+  }) async {
+    final apiBase = _ref.read(apiBaseUrlProvider);
+
+    final response = await http
+        .post(
+          Uri.parse('$apiBase/api/documents/decode-public'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'ocr_text': ocrText,
+            'reading_level': readingLevel,
+          }),
+        )
+        .timeout(const Duration(seconds: 30));
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw HttpException(
+        'Document decode failed: ${response.statusCode} ${response.body}',
+      );
+    }
+
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final extraction = body['extraction'] as Map<String, dynamic>;
+    return DocumentDecodeResult(
+      documentId: 'anon',
+      summary: body['summary'] as String,
+      extraction: extraction,
+    );
+  }
 }

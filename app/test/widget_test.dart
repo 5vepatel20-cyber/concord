@@ -31,13 +31,7 @@ void main() {
   });
 
   testWidgets('SeverityChip asserts on out-of-range grade', (tester) async {
-    expect(
-      () => SeverityChip(grade: -1),
-      throwsA(isA<AssertionError>()),
-    );
-    expect(
-      () => SeverityChip(grade: 4),
-      throwsA(isA<AssertionError>()),
-    );
+    expect(() => SeverityChip(grade: -1), throwsA(isA<AssertionError>()));
+    expect(() => SeverityChip(grade: 4), throwsA(isA<AssertionError>()));
   });
 }

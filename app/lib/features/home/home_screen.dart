@@ -2,32 +2,26 @@
 //
 // Shows:
 //   - Today's date + a "Good morning" greeting (uses the user's first name)
-//   - Quick action buttons: Log, Report, Atlas, Schedule
+//   - Quick action buttons: Log, Report, Atlas
 //   - SYM-06 worsening symptoms card (hidden when nothing to report)
-//   - ONB-05 next treatment event card (hidden when no upcoming events)
 //   - "Log a symptom" CTA that opens the quick-log bottom sheet
 //   - Today's activity (HealthKit / Health Connect snapshot — optional)
 //   - Recent symptom logs list with top grade
 //   - Latest Atlas nudge
 
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/health/health_repository.dart';
 import '../../core/sync/pending_count_provider.dart';
-import '../../data/supabase/supabase_provider.dart';
 import '../../theme/tokens.dart';
 import '../../data/repositories/report_repository.dart';
 import '../../theme/typography.dart';
 import '../symptoms/quick_log_screen.dart';
 import '../symptoms/quick_log_widget.dart';
 import '../symptoms/symptom_history_screen.dart';
-import '../treatment/treatment_calendar_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -97,8 +91,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const _PendingSyncBadge(),
               const SizedBox(height: Space.s2),
               const _WorseningCard(),
-              const SizedBox(height: Space.s2),
-              const _NextTreatmentCard(),
               const SizedBox(height: Space.s3),
               const QuickLogWidget(),
               const SizedBox(height: Space.s3),
@@ -385,137 +377,6 @@ class _WorseningCardState extends ConsumerState<_WorseningCard> {
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// ONB-05: Next upcoming treatment event card. Shows the closest scheduled
-/// infusion, appointment, lab, scan, or other event. Hidden when no upcoming
-/// events or when the API call fails (non-blocking dashboard card).
-class _NextTreatmentCard extends ConsumerStatefulWidget {
-  const _NextTreatmentCard();
-
-  @override
-  ConsumerState<_NextTreatmentCard> createState() => _NextTreatmentCardState();
-}
-
-class _NextTreatmentCardState extends ConsumerState<_NextTreatmentCard> {
-  TreatmentEvent? _nextEvent;
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final apiBase = ref.read(apiBaseUrlProvider);
-      final session = ref.read(supabaseClientProvider).auth.currentSession;
-      if (session == null) return;
-
-      final res = await http
-          .get(
-            Uri.parse('$apiBase/api/treatment/events?status=scheduled'),
-            headers: {'Authorization': 'Bearer ${session.accessToken}'},
-          )
-          .timeout(const Duration(seconds: 10));
-
-      if (!mounted) return;
-      if (res.statusCode != 200) return;
-
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      final raw = (body['events'] as List<dynamic>?) ?? [];
-      final events = raw
-          .map((e) => TreatmentEvent.fromJson(e as Map<String, dynamic>))
-          .toList();
-
-      final today = DateTime.now().toIso8601String().split('T').first;
-      final upcoming =
-          events
-              .where((e) => e.status == 'scheduled' && e.eventDate >= today)
-              .toList()
-            ..sort((a, b) => a.eventDate.compareTo(b.eventDate));
-
-      if (upcoming.isNotEmpty) {
-        if (mounted) setState(() => _nextEvent = upcoming.first);
-      }
-    } catch (_) {
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_loading || _nextEvent == null) return const SizedBox.shrink();
-    final e = _nextEvent!;
-    final t = Theme.of(context);
-
-    final dateParsed = DateTime.tryParse(e.eventDate);
-    final dateStr = dateParsed != null
-        ? DateFormat('MMM d, yyyy').format(dateParsed)
-        : e.eventDate;
-    final daysUntil = dateParsed != null
-        ? dateParsed.difference(DateTime.now()).inDays
-        : 0;
-
-    final icon = switch (e.eventType) {
-      'infusion' => Icons.iv_bag,
-      'appointment' => Icons.calendar_today,
-      'lab' => Icons.science_outlined,
-      'scan' => Icons.radiology,
-      'surgery' => Icons.local_hospital,
-      _ => Icons.event_note,
-    };
-
-    return Card(
-      child: InkWell(
-        onTap: () => context.push('/treatment/calendar'),
-        borderRadius: BorderRadius.circular(Radii.md),
-        child: Padding(
-          padding: const EdgeInsets.all(Space.s4),
-          child: Row(
-            children: [
-              Icon(icon, size: 24, color: t.colorScheme.primary),
-              const SizedBox(width: Space.s3),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      daysUntil <= 0
-                          ? 'Today'
-                          : daysUntil == 1
-                          ? 'Tomorrow'
-                          : 'In $daysUntil days',
-                      style: t.textTheme.bodySmall?.copyWith(
-                        color: t.colorScheme.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: Space.s1),
-                    Text(
-                      e.title,
-                      style: t.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      dateStr,
-                      style: t.textTheme.bodySmall?.copyWith(
-                        color: Neutrals.slate,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: Neutrals.slate),
             ],
           ),
         ),
@@ -912,14 +773,6 @@ class _QuickActionsRow extends StatelessWidget {
             icon: Icons.auto_awesome_outlined,
             label: 'Atlas',
             onTap: () => context.go('/atlas'),
-          ),
-        ),
-        const SizedBox(width: Space.s2),
-        Expanded(
-          child: _ActionButton(
-            icon: Icons.calendar_month_outlined,
-            label: 'Schedule',
-            onTap: () => context.push('/treatment/calendar'),
           ),
         ),
       ],

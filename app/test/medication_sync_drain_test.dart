@@ -41,14 +41,16 @@ class _FakeDb implements DatabaseLike {
     final rewritten = <PendingAdherenceDraft>[];
     for (final a in adherencePending) {
       if (a.medicationLocalId == localId && a.medicationServerId == null) {
-        rewritten.add(PendingAdherenceDraft(
-          localId: a.localId,
-          payloadJson: a.payloadJson,
-          medicationLocalId: a.medicationLocalId,
-          medicationServerId: serverId,
-          createdAt: a.createdAt,
-          syncError: a.syncError,
-        ));
+        rewritten.add(
+          PendingAdherenceDraft(
+            localId: a.localId,
+            payloadJson: a.payloadJson,
+            medicationLocalId: a.medicationLocalId,
+            medicationServerId: serverId,
+            createdAt: a.createdAt,
+            syncError: a.syncError,
+          ),
+        );
       } else {
         rewritten.add(a);
       }
@@ -132,10 +134,7 @@ class _FakeMedRepo extends MedicationRepository {
   }) async {
     medicationPosts.add(idempotencyKey);
     final id = 'srv-med-${medicationPosts.length}';
-    return Medication(
-      id: id,
-      displayName: _displayName(payloadJson),
-    );
+    return Medication(id: id, displayName: _displayName(payloadJson));
   }
 
   @override
@@ -167,20 +166,24 @@ void main() {
   group('sync drain medication ordering', () {
     test('medication drains before adherence', () async {
       final db = _FakeDb();
-      db.medicationPending.add(PendingSymptomReport(
-        localId: 'med-local-1',
-        payloadJson: '{"display_name":"Tamoxifen"}',
-        createdAt: DateTime.utc(2026, 6, 19),
-      ));
+      db.medicationPending.add(
+        PendingSymptomReport(
+          localId: 'med-local-1',
+          payloadJson: '{"display_name":"Tamoxifen"}',
+          createdAt: DateTime.utc(2026, 6, 19),
+        ),
+      );
       // Adherence references the medication by localId — serverId unknown.
-      db.adherencePending.add(PendingAdherenceDraft(
-        localId: 'adh-1',
-        payloadJson:
-            '{"medication_id":"med-local-1","status":"taken","scheduled_for":"2026-06-19T08:00:00Z"}',
-        medicationLocalId: 'med-local-1',
-        medicationServerId: null,
-        createdAt: DateTime.utc(2026, 6, 19),
-      ));
+      db.adherencePending.add(
+        PendingAdherenceDraft(
+          localId: 'adh-1',
+          payloadJson:
+              '{"medication_id":"med-local-1","status":"taken","scheduled_for":"2026-06-19T08:00:00Z"}',
+          medicationLocalId: 'med-local-1',
+          medicationServerId: null,
+          createdAt: DateTime.utc(2026, 6, 19),
+        ),
+      );
 
       // We can't easily construct a SyncService here (it depends on Riverpod
       // + supabase + connectivity_plus). Instead, we exercise the same
@@ -227,32 +230,41 @@ void main() {
       expect(db.syncedAdherenceIds, ['adh-1']);
     });
 
-    test('adherence with no pending medication is skipped (not lost)', () async {
-      final db = _FakeDb();
-      db.adherencePending.add(PendingAdherenceDraft(
-        localId: 'adh-orphan',
-        payloadJson: '{"status":"skipped","scheduled_for":"2026-06-19T08:00:00Z"}',
-        medicationLocalId: null,
-        medicationServerId: null,
-        createdAt: DateTime.utc(2026, 6, 19),
-      ));
-
-      // No medication drain — so serverId stays null. Drain should NOT
-      // POST the adherence; row stays pending.
-      final medRepo = _FakeMedRepo(db);
-      final pending = await db.pendingAdherenceDrafts();
-      for (final a in pending) {
-        if (a.medicationServerId == null) continue;
-        await medRepo.logAdherenceOnline(
-          medicationServerId: a.medicationServerId!,
-          payloadJson: a.payloadJson,
-          idempotencyKey: a.localId,
+    test(
+      'adherence with no pending medication is skipped (not lost)',
+      () async {
+        final db = _FakeDb();
+        db.adherencePending.add(
+          PendingAdherenceDraft(
+            localId: 'adh-orphan',
+            payloadJson:
+                '{"status":"skipped","scheduled_for":"2026-06-19T08:00:00Z"}',
+            medicationLocalId: null,
+            medicationServerId: null,
+            createdAt: DateTime.utc(2026, 6, 19),
+          ),
         );
-      }
 
-      expect(medRepo.adherencePosts, isEmpty);
-      // Row is still pending.
-      expect((await db.pendingAdherenceDrafts()).single.localId, 'adh-orphan');
-    });
+        // No medication drain — so serverId stays null. Drain should NOT
+        // POST the adherence; row stays pending.
+        final medRepo = _FakeMedRepo(db);
+        final pending = await db.pendingAdherenceDrafts();
+        for (final a in pending) {
+          if (a.medicationServerId == null) continue;
+          await medRepo.logAdherenceOnline(
+            medicationServerId: a.medicationServerId!,
+            payloadJson: a.payloadJson,
+            idempotencyKey: a.localId,
+          );
+        }
+
+        expect(medRepo.adherencePosts, isEmpty);
+        // Row is still pending.
+        expect(
+          (await db.pendingAdherenceDrafts()).single.localId,
+          'adh-orphan',
+        );
+      },
+    );
   });
 }

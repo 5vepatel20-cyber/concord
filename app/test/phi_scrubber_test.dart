@@ -21,16 +21,33 @@ void main() {
 
     test('matches common PHI key names', () {
       for (final key in [
-        'email', 'EMAIL', 'Email',
-        'phone', 'Phone',
-        'patientName', 'patient_name',
-        'fullName', 'full_name', 'full name',
-        'dateOfBirth', 'date_of_birth', 'DOB',
-        'ssn', 'mrn', 'address',
-        'primaryCondition', 'medication', 'symptom',
-        'notes', 'freeText', 'free_text', 'free text',
-        'insurancePolicy', 'provider',
-        'diagnosis', 'treatment',
+        'email',
+        'EMAIL',
+        'Email',
+        'phone',
+        'Phone',
+        'patientName',
+        'patient_name',
+        'fullName',
+        'full_name',
+        'full name',
+        'dateOfBirth',
+        'date_of_birth',
+        'DOB',
+        'ssn',
+        'mrn',
+        'address',
+        'primaryCondition',
+        'medication',
+        'symptom',
+        'notes',
+        'freeText',
+        'free_text',
+        'free text',
+        'insurancePolicy',
+        'provider',
+        'diagnosis',
+        'treatment',
       ]) {
         expect(phiKey.hasMatch(key), isTrue, reason: 'should match: $key');
       }
@@ -38,10 +55,22 @@ void main() {
 
     test('does NOT match unrelated safe keys', () {
       for (final key in [
-        'id', 'count', 'screen', 'route', 'tap',
-        'featureFlag', 'buildNumber', 'release', 'environment',
-        'durationMs', 'platform', 'locale', 'timezone',
-        'isAuthenticated', 'hasNetwork', 'tabIndex',
+        'id',
+        'count',
+        'screen',
+        'route',
+        'tap',
+        'featureFlag',
+        'buildNumber',
+        'release',
+        'environment',
+        'durationMs',
+        'platform',
+        'locale',
+        'timezone',
+        'isAuthenticated',
+        'hasNetwork',
+        'tabIndex',
       ]) {
         expect(phiKey.hasMatch(key), isFalse, reason: 'should NOT match: $key');
       }
@@ -62,6 +91,7 @@ void main() {
       Future<void> runner() async {
         ran = true;
       }
+
       // If a DSN happens to be set in the dev env, initSentry will try to
       // call SentryFlutter.init; that path is covered by integration tests.
       // For the unit test, we only run if no DSN is configured. We use a

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../data/repositories/document_repository.dart';
+import '../../data/supabase/supabase_provider.dart';
 import '../../theme/tokens.dart';
 
 class DocumentDecodeScreen extends ConsumerStatefulWidget {
@@ -58,7 +59,10 @@ class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
 
     try {
       final repo = ref.read(documentRepositoryProvider);
-      final result = await repo.decode(ocrText: text);
+      final session = ref.read(supabaseClientProvider).auth.currentSession;
+      final result = session != null
+          ? await repo.decode(ocrText: text)
+          : await repo.decodeAnonymously(ocrText: text);
       setState(() {
         _result = result;
         _isLoading = false;

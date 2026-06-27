@@ -33,6 +33,7 @@ import 'features/auth/sign_in_screen.dart';
 import 'features/auth/sign_up_screen.dart';
 import 'features/documents/document_decode_screen.dart';
 import 'features/home/home_screen.dart';
+import 'features/landing/landing_screen.dart';
 import 'features/log/log_landing_screen.dart';
 import 'features/medications/medications_screen.dart';
 import 'features/medications/add_medication_screen.dart';
@@ -122,11 +123,17 @@ class _ConcordAppState extends ConsumerState<ConcordApp> {
   }
 }
 
-const _publicRoutes = <String>{'/sign-in', '/sign-up', '/forgot-password'};
+const _publicRoutes = <String>{
+  '/',
+  '/sign-in',
+  '/sign-up',
+  '/forgot-password',
+  '/documents/decode',
+};
 
 GoRouter _buildRouter(WidgetRef ref) {
   return GoRouter(
-    initialLocation: '/sign-in',
+    initialLocation: '/',
     refreshListenable: _AuthRefresh(ref),
     redirect: (context, state) {
       final auth = ref.read(authControllerProvider);
@@ -141,17 +148,10 @@ GoRouter _buildRouter(WidgetRef ref) {
       }
       if (isPublic) return '/home';
 
-      // Onboarding guard: redirect to /onboarding until consent is stored.
-      if (loc != '/onboarding') {
-        final settings = ref.read(settingsControllerProvider);
-        if (settings is AsyncData && settings.value?.consentVersion == null) {
-          return '/onboarding';
-        }
-      }
-
       return null;
     },
     routes: [
+      GoRoute(path: '/', builder: (_, _) => const LandingScreen()),
       GoRoute(path: '/sign-in', builder: (_, _) => const SignInScreen()),
       GoRoute(path: '/sign-up', builder: (_, _) => const SignUpScreen()),
       GoRoute(

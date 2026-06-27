@@ -63,10 +63,7 @@ void main() {
       );
       final slots = MedicationReminderService.slotsFor(m);
       expect(slots.length, 7);
-      expect(
-        slots.map((s) => s.day).toSet(),
-        Weekday.values.toSet(),
-      );
+      expect(slots.map((s) => s.day).toSet(), Weekday.values.toSet());
     });
 
     test('as_needed produces zero slots regardless of times', () {
@@ -115,10 +112,7 @@ void main() {
       final m = Medication(
         id: 'm7',
         displayName: 'Mega',
-        schedule: MedSchedule(
-          frequency: MedFrequency.daily,
-          times: times,
-        ),
+        schedule: MedSchedule(frequency: MedFrequency.daily, times: times),
       );
       final slots = MedicationReminderService.slotsFor(m);
       expect(slots.length, 16);
@@ -191,10 +185,7 @@ void main() {
       const m = Medication(
         id: 'm',
         displayName: 'Methotrexate',
-        schedule: MedSchedule(
-          frequency: MedFrequency.weekly,
-          times: ['09:00'],
-        ),
+        schedule: MedSchedule(frequency: MedFrequency.weekly, times: ['09:00']),
       );
       final t = MedicationReminderService.slotTextFor(m);
       expect(t.body, 'Weekly dose');

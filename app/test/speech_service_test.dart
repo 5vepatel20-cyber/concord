@@ -19,15 +19,21 @@ void main() {
     test('empty partial is a no-op', () {
       expect(
         appendTranscript(
-          'hello', '',
-          isFinal: false, hadFinalBefore: false, prevPartialLength: 0,
+          'hello',
+          '',
+          isFinal: false,
+          hadFinalBefore: false,
+          prevPartialLength: 0,
         ),
         'hello',
       );
       expect(
         appendTranscript(
-          'hello', '',
-          isFinal: true, hadFinalBefore: false, prevPartialLength: 5,
+          'hello',
+          '',
+          isFinal: true,
+          hadFinalBefore: false,
+          prevPartialLength: 5,
         ),
         'hello',
       );
@@ -36,8 +42,11 @@ void main() {
     test('first partial into empty notes has no leading space', () {
       expect(
         appendTranscript(
-          '', 'first words',
-          isFinal: false, hadFinalBefore: false, prevPartialLength: 0,
+          '',
+          'first words',
+          isFinal: false,
+          hadFinalBefore: false,
+          prevPartialLength: 0,
         ),
         'first words',
       );
@@ -46,8 +55,11 @@ void main() {
     test('first partial appends with a space when notes is non-empty', () {
       expect(
         appendTranscript(
-          'preceding text', 'partial one',
-          isFinal: false, hadFinalBefore: false, prevPartialLength: 0,
+          'preceding text',
+          'partial one',
+          isFinal: false,
+          hadFinalBefore: false,
+          prevPartialLength: 0,
         ),
         'preceding text partial one',
       );
@@ -59,8 +71,11 @@ void main() {
       const afterFirst = 'preceding text partial one';
       expect(
         appendTranscript(
-          afterFirst, 'partial one two',
-          isFinal: false, hadFinalBefore: false, prevPartialLength: 12,
+          afterFirst,
+          'partial one two',
+          isFinal: false,
+          hadFinalBefore: false,
+          prevPartialLength: 12,
         ),
         'preceding text partial one two',
       );
@@ -71,8 +86,11 @@ void main() {
       const withProvisional = 'preceding text partial one two';
       expect(
         appendTranscript(
-          withProvisional, 'partial one two three',
-          isFinal: true, hadFinalBefore: false, prevPartialLength: 16,
+          withProvisional,
+          'partial one two three',
+          isFinal: true,
+          hadFinalBefore: false,
+          prevPartialLength: 16,
         ),
         'preceding text partial one two three',
       );
@@ -85,8 +103,11 @@ void main() {
       const afterFirstFinal = 'first sentence. ';
       expect(
         appendTranscript(
-          afterFirstFinal, 'partial two',
-          isFinal: false, hadFinalBefore: true, prevPartialLength: 0,
+          afterFirstFinal,
+          'partial two',
+          isFinal: false,
+          hadFinalBefore: true,
+          prevPartialLength: 0,
         ),
         'first sentence. partial two',
       );
@@ -98,8 +119,11 @@ void main() {
       const notes = 'first sentence. partial two';
       expect(
         appendTranscript(
-          notes, 'partial two three',
-          isFinal: false, hadFinalBefore: true, prevPartialLength: 12,
+          notes,
+          'partial two three',
+          isFinal: false,
+          hadFinalBefore: true,
+          prevPartialLength: 12,
         ),
         'first sentence. partial two three',
       );
@@ -110,8 +134,11 @@ void main() {
       const notes = 'I had nausea. ';
       expect(
         appendTranscript(
-          notes, 'today it is mild',
-          isFinal: false, hadFinalBefore: true, prevPartialLength: 0,
+          notes,
+          'today it is mild',
+          isFinal: false,
+          hadFinalBefore: true,
+          prevPartialLength: 0,
         ),
         'I had nausea. today it is mild',
       );
@@ -122,8 +149,11 @@ void main() {
       const notes = 'existing notes';
       expect(
         appendTranscript(
-          notes, '',
-          isFinal: true, hadFinalBefore: false, prevPartialLength: 0,
+          notes,
+          '',
+          isFinal: true,
+          hadFinalBefore: false,
+          prevPartialLength: 0,
         ),
         'existing notes',
       );
@@ -139,7 +169,9 @@ void main() {
         appendTranscript(
           notesAfterFirst,
           'I had nausea and it was quite bad today',
-          isFinal: true, hadFinalBefore: false, prevPartialLength: 13,
+          isFinal: true,
+          hadFinalBefore: false,
+          prevPartialLength: 13,
         ),
         'preface. I had nausea and it was quite bad today',
       );
@@ -152,8 +184,11 @@ void main() {
       const notes = 'start hello world';
       expect(
         appendTranscript(
-          notes, 'hello',
-          isFinal: false, hadFinalBefore: false, prevPartialLength: 11,
+          notes,
+          'hello',
+          isFinal: false,
+          hadFinalBefore: false,
+          prevPartialLength: 11,
         ),
         'start hello',
       );
