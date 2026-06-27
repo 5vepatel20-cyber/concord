@@ -1,4 +1,3 @@
-import 'dart:html' as html;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -7,6 +6,7 @@ import 'package:flutter/rendering.dart';
 
 import '../core/monitoring/posthog_init.dart';
 import '../theme/tokens.dart';
+import 'download_utils.dart';
 
 class ShareCard extends StatelessWidget {
   const ShareCard({
@@ -154,14 +154,6 @@ class ShareCardController {
     if (bytes == null) return;
 
     capturePosthogEvent('share_card_downloaded');
-
-    // Use dart:html AnchorElement for web download.
-    // ignore: undefined_prefixed_name
-    final anchor = html.AnchorElement(
-      href: html.Url.createObjectUrl(html.Blob([bytes.toList()], 'image/png')),
-    );
-    anchor.download = 'concord-decode.png';
-    anchor.click();
-    html.Url.revokeObjectUrl(anchor.href!);
+    downloadBytes(bytes, 'concord-decode.png');
   }
 }

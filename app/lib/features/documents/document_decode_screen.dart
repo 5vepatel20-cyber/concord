@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,7 +22,7 @@ class DocumentDecodeScreen extends ConsumerStatefulWidget {
 class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
   final _textController = TextEditingController();
   final _picker = ImagePicker();
-  File? _selectedImage;
+  Uint8List? _imageBytes;
   String? _imageBase64;
   bool _isLoading = false;
   DocumentDecodeResult? _result;
@@ -37,10 +37,9 @@ class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
   Future<void> _pickImage() async {
     final xfile = await _picker.pickImage(source: ImageSource.camera);
     if (xfile != null) {
-      final file = File(xfile.path);
-      final bytes = await file.readAsBytes();
+      final bytes = await xfile.readAsBytes();
       setState(() {
-        _selectedImage = file;
+        _imageBytes = bytes;
         _imageBase64 = base64Encode(bytes);
       });
     }
@@ -49,10 +48,9 @@ class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
   Future<void> _pickGallery() async {
     final xfile = await _picker.pickImage(source: ImageSource.gallery);
     if (xfile != null) {
-      final file = File(xfile.path);
-      final bytes = await file.readAsBytes();
+      final bytes = await xfile.readAsBytes();
       setState(() {
-        _selectedImage = file;
+        _imageBytes = bytes;
         _imageBase64 = base64Encode(bytes);
       });
     }
@@ -131,10 +129,13 @@ class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
       appBar: AppBar(
         title: const Text('Decode Document'),
         actions: [
-          if (_selectedImage != null)
+          if (_imageBytes != null)
             IconButton(
               icon: const Icon(Icons.close),
-              onPressed: () => setState(() => _selectedImage = null),
+              onPressed: () => setState(() {
+                _imageBytes = null;
+                _imageBase64 = null;
+              }),
             ),
         ],
       ),
@@ -144,13 +145,13 @@ class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (_selectedImage != null)
+              if (_imageBytes != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: Space.s4),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(Radii.md),
-                    child: Image.file(
-                      _selectedImage!,
+                    child: Image.memory(
+                      _imageBytes!,
                       height: 200,
                       fit: BoxFit.cover,
                     ),
