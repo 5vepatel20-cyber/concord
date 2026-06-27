@@ -40,7 +40,7 @@ class ShareCard extends StatelessWidget {
           ],
         ),
         borderRadius: BorderRadius.circular(Radii.lg),
-        border: Border.all(color: Neutrals.border),
+        border: Border.all(color: Neutrals.hairline),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

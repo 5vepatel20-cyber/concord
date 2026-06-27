@@ -325,54 +325,54 @@ class MedicationRepository {
     }
     return AdherenceId(id: ev['id'] as String);
   }
-}
 
-/// Deactivate a medication server-side (PATCH /api/medications/:id).
-/// Returns the updated Medication on success.
-Future<Result<Medication, AppError>> deactivate(String medicationId) async {
-  try {
-    final apiBase = _ref.read(apiBaseUrlProvider);
-    final session = _ref.read(supabaseClientProvider).auth.currentSession;
-    if (session == null) {
-      return const Err(
+  /// Deactivate a medication server-side (PATCH /api/medications/:id).
+  /// Returns the updated Medication on success.
+  Future<Result<Medication, AppError>> deactivate(String medicationId) async {
+    try {
+      final apiBase = _ref.read(apiBaseUrlProvider);
+      final session = _ref.read(supabaseClientProvider).auth.currentSession;
+      if (session == null) {
+        return const Err(
+          AppError(
+            kind: AppErrorKind.unauthorized,
+            code: 'no_session',
+            message: 'Not signed in',
+          ),
+        );
+      }
+      final uri = Uri.parse('$apiBase/api/medications/$medicationId');
+      final response = await http
+          .patch(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${session.accessToken}',
+            },
+            body: jsonEncode({'active': false}),
+          )
+          .timeout(const Duration(seconds: 15));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw HttpException(
+          'deactivate failed: ${response.statusCode} ${response.body}',
+        );
+      }
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final med = body['medication'] as Map<String, dynamic>?;
+      if (med == null) {
+        throw const FormatException('deactivate response missing medication');
+      }
+      return Ok(Medication.fromJson(med));
+    } catch (e) {
+      return Err(
         AppError(
-          kind: AppErrorKind.unauthorized,
-          code: 'no_session',
-          message: 'Not signed in',
+          kind: AppErrorKind.network,
+          code: 'deactivate_failed',
+          message: 'Could not deactivate medication',
+          cause: e,
         ),
       );
     }
-    final uri = Uri.parse('$apiBase/api/medications/$medicationId');
-    final response = await http
-        .patch(
-          uri,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${session.accessToken}',
-          },
-          body: jsonEncode({'active': false}),
-        )
-        .timeout(const Duration(seconds: 15));
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw HttpException(
-        'deactivate failed: ${response.statusCode} ${response.body}',
-      );
-    }
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final med = body['medication'] as Map<String, dynamic>?;
-    if (med == null) {
-      throw const FormatException('deactivate response missing medication');
-    }
-    return Ok(Medication.fromJson(med));
-  } catch (e) {
-    return Err(
-      AppError(
-        kind: AppErrorKind.network,
-        code: 'deactivate_failed',
-        message: 'Could not deactivate medication',
-        cause: e,
-      ),
-    );
   }
 }
 

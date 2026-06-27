@@ -136,63 +136,6 @@ class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
         _isLoading = false;
       });
     }
-    if (text.length < 10 && _imageBase64 == null) {
-      setState(
-        () =>
-            _error = 'Please provide at least 10 characters or a clear photo.',
-      );
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _error = null;
-      _result = null;
-    });
-
-    capturePosthogEvent(
-      'decode_started',
-      properties: {
-        'char_length': text.length,
-        'has_image': _imageBase64 != null,
-      },
-    );
-
-    try {
-      final repo = ref.read(documentRepositoryProvider);
-      final session = ref.read(supabaseClientProvider).auth.currentSession;
-      final isAnon = session == null;
-      final result = isAnon
-          ? await repo.decodeAnonymously(
-              ocrText: text,
-              imageBase64: _imageBase64,
-            )
-          : await repo.decode(ocrText: text, imageBase64: _imageBase64);
-      capturePosthogEvent(
-        'decode_completed',
-        properties: {
-          'is_anon': isAnon,
-          'char_length': text.length,
-          'has_image': _imageBase64 != null,
-        },
-      );
-      setState(() {
-        _result = result;
-        _isLoading = false;
-      });
-    } catch (e) {
-      capturePosthogEvent(
-        'decode_errored',
-        properties: {
-          'error': e.runtimeType.toString(),
-          'char_length': text.length,
-        },
-      );
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
-    }
   }
 
   @override
@@ -235,16 +178,20 @@ class _DocumentDecodeScreenState extends ConsumerState<DocumentDecodeScreen> {
 
               Row(
                 children: [
-                  OutlinedButton.icon(
-                    onPressed: _pickImage,
-                    icon: const Icon(Icons.camera_alt),
-                    label: const Text('Camera'),
+                  Flexible(
+                    child: OutlinedButton.icon(
+                      onPressed: _pickImage,
+                      icon: const Icon(Icons.camera_alt),
+                      label: const Text('Camera'),
+                    ),
                   ),
                   const SizedBox(width: Space.s2),
-                  OutlinedButton.icon(
-                    onPressed: _pickGallery,
-                    icon: const Icon(Icons.photo_library),
-                    label: const Text('Gallery'),
+                  Flexible(
+                    child: OutlinedButton.icon(
+                      onPressed: _pickGallery,
+                      icon: const Icon(Icons.photo_library),
+                      label: const Text('Gallery'),
+                    ),
                   ),
                 ],
               ),

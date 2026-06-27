@@ -87,11 +87,11 @@ class DocumentRepository {
       );
     }
 
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final res = jsonDecode(response.body) as Map<String, dynamic>;
     return DocumentDecodeResult(
-      documentId: body['document_id'] as String,
-      summary: body['summary'] as String,
-      extraction: body['extraction'] as Map<String, dynamic>,
+      documentId: res['document_id'] as String,
+      summary: res['summary'] as String,
+      extraction: res['extraction'] as Map<String, dynamic>,
     );
   }
 

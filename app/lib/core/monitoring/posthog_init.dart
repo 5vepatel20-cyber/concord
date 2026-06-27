@@ -58,17 +58,21 @@ Future<bool> initPosthog() async {
 /// listeners. Pass the userId (always non-PHI) and optionally an email (the
 /// user has explicitly opted in by toggling analytics on, so this is allowed).
 void identifyPosthogUser(String userId, {String? email}) {
-  if (email != null) {
-    Posthog().identify(userId: userId, userProperties: {'email': email});
-  } else {
-    Posthog().identify(userId: userId);
-  }
+  try {
+    if (email != null) {
+      Posthog().identify(userId: userId, userProperties: {'email': email});
+    } else {
+      Posthog().identify(userId: userId);
+    }
+  } catch (_) {}
 }
 
 /// Clears the PostHog profile on sign-out so the next user doesn't inherit
 /// it on the same device.
 void resetPosthogUser() {
-  Posthog().reset();
+  try {
+    Posthog().reset();
+  } catch (_) {}
 }
 
 /// Captures a generic, non-PHI event. Pass only generic verbs and counts —
@@ -84,5 +88,9 @@ void capturePosthogEvent(String name, {Map<String, Object?>? properties}) {
     if (entry.value == null) continue;
     cleaned[entry.key] = entry.value as Object;
   }
-  Posthog().capture(eventName: name, properties: cleaned);
+  try {
+    Posthog().capture(eventName: name, properties: cleaned);
+  } catch (_) {
+    // Posthog not initialized (e.g. test environment) — safe to ignore.
+  }
 }
