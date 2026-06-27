@@ -34,7 +34,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   Future<void> _submit() async {
     if (!_consent) {
-      setState(() => _error = 'Please confirm the consent statement to continue.');
+      setState(
+        () => _error = 'Please confirm the consent statement to continue.',
+      );
       return;
     }
     if (!_formKey.currentState!.validate()) return;
@@ -42,7 +44,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       _busy = true;
       _error = null;
     });
-    final res = await ref.read(authControllerProvider.notifier).signUp(
+    final res = await ref
+        .read(authControllerProvider.notifier)
+        .signUp(
           email: _email.text,
           password: _password.text,
           fullName: _fullName.text,
@@ -75,7 +79,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 const SizedBox(height: Space.s2),
                 Text(
                   'Concord is not a medical device. It captures symptoms for your oncology team and helps you stay on track between visits.',
-                  style: t.textTheme.bodyMedium?.copyWith(color: Neutrals.slate),
+                  style: t.textTheme.bodyMedium?.copyWith(
+                    color: Neutrals.slate,
+                  ),
                 ),
                 const SizedBox(height: Space.s6),
                 TextFormField(
@@ -100,9 +106,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   controller: _password,
                   obscureText: true,
                   autofillHints: const [AutofillHints.newPassword],
-                  decoration: const InputDecoration(labelText: 'Password (min 8 chars)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Password (min 8 chars)',
+                  ),
                   validator: (v) {
-                    if (v == null || v.length < 8) return 'At least 8 characters';
+                    if (v == null || v.length < 8)
+                      return 'At least 8 characters';
                     return null;
                   },
                 ),
@@ -122,21 +131,32 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: Space.s3),
-                  Text(_error!, style: t.textTheme.bodySmall?.copyWith(color: SeverityColors.severe)),
+                  Text(
+                    _error!,
+                    style: t.textTheme.bodySmall?.copyWith(
+                      color: SeverityColors.severe,
+                    ),
+                  ),
                 ],
                 const SizedBox(height: Space.s5),
                 FilledButton(
                   onPressed: _busy ? null : _submit,
                   child: _busy
                       ? const SizedBox(
-                          height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Create account'),
                 ),
                 const SizedBox(height: Space.s3),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('Already have an account?', style: t.textTheme.bodyMedium),
+                    Text(
+                      'Already have an account?',
+                      style: t.textTheme.bodyMedium,
+                    ),
                     TextButton(
                       onPressed: _busy ? null : () => context.go('/sign-in'),
                       child: const Text('Sign in'),

@@ -12,21 +12,21 @@ sealed class Result<T, E> {
 
   /// Returns the ok value or null.
   T? get valueOrNull => switch (this) {
-        Ok<T, E>(:final value) => value,
-        Err<T, E>() => null,
-      };
+    Ok<T, E>(:final value) => value,
+    Err<T, E>() => null,
+  };
 
   /// Returns the error or null.
   E? get errorOrNull => switch (this) {
-        Ok<T, E>() => null,
-        Err<T, E>(:final error) => error,
-      };
+    Ok<T, E>() => null,
+    Err<T, E>(:final error) => error,
+  };
 
   /// Map the success value.
   Result<R, E> map<R>(R Function(T) f) => switch (this) {
-        Ok<T, E>(:final value) => Ok<R, E>(f(value)),
-        Err<T, E>(:final error) => Err<R, E>(error),
-      };
+    Ok<T, E>(:final value) => Ok<R, E>(f(value)),
+    Err<T, E>(:final error) => Err<R, E>(error),
+  };
 
   /// Pattern-match. `ok` may return a Future to support async fallbacks
   /// (e.g. on error, fall back to a cached read).
@@ -101,17 +101,17 @@ class AppError {
   }
 
   factory AppError.network(Object cause) => AppError(
-        kind: AppErrorKind.network,
-        code: 'network',
-        message: 'Couldn\'t reach Concord. Check your connection.',
-        cause: cause,
-      );
+    kind: AppErrorKind.network,
+    code: 'network',
+    message: 'Couldn\'t reach Concord. Check your connection.',
+    cause: cause,
+  );
 
   factory AppError.unauthorized({String? detail}) => AppError(
-        kind: AppErrorKind.unauthorized,
-        code: 'unauthorized',
-        message: detail ?? 'Your session ended. Sign in again.',
-      );
+    kind: AppErrorKind.unauthorized,
+    code: 'unauthorized',
+    message: detail ?? 'Your session ended. Sign in again.',
+  );
 
   final AppErrorKind kind;
   final String code;

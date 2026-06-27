@@ -43,8 +43,6 @@ class _LogLandingScreenState extends ConsumerState<LogLandingScreen> {
   Widget build(BuildContext context) {
     // Invisible. The user never sees this; the bottom sheet covers it
     // and then we route to /home.
-    return const Scaffold(
-      body: SizedBox.shrink(),
-    );
+    return const Scaffold(body: SizedBox.shrink());
   }
 }

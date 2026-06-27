@@ -12,7 +12,8 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  ConsumerState<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
@@ -67,7 +68,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   _sent
                       ? 'Check your email. We sent a reset link if an account exists for that address.'
                       : 'Enter the email you used to sign up. We\'ll send a reset link.',
-                  style: t.textTheme.bodyMedium?.copyWith(color: Neutrals.slate),
+                  style: t.textTheme.bodyMedium?.copyWith(
+                    color: Neutrals.slate,
+                  ),
                 ),
                 const SizedBox(height: Space.s6),
                 if (!_sent) ...[
@@ -83,15 +86,22 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: Space.s3),
-                    Text(_error!,
-                        style: t.textTheme.bodySmall?.copyWith(color: SeverityColors.severe)),
+                    Text(
+                      _error!,
+                      style: t.textTheme.bodySmall?.copyWith(
+                        color: SeverityColors.severe,
+                      ),
+                    ),
                   ],
                   const SizedBox(height: Space.s5),
                   FilledButton(
                     onPressed: _busy ? null : _submit,
                     child: _busy
                         ? const SizedBox(
-                            height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Text('Send reset link'),
                   ),
                 ],

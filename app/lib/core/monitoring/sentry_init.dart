@@ -36,25 +36,22 @@ Future<void> initSentry(Future<void> Function() runner) async {
     return;
   }
 
-  await SentryFlutter.init(
-    (options) {
-      options.dsn = dsn;
-      options.environment = kDebugMode ? 'debug' : 'production';
-      options.release = 'concord@1.0.0+1';
-      options.tracesSampleRate = kDebugMode ? 1.0 : 0.1;
+  await SentryFlutter.init((options) {
+    options.dsn = dsn;
+    options.environment = kDebugMode ? 'debug' : 'production';
+    options.release = 'concord@1.0.0+1';
+    options.tracesSampleRate = kDebugMode ? 1.0 : 0.1;
 
-      // Default data scrubber stays on; this is the second pass.
-      options.sendDefaultPii = false;
+    // Default data scrubber stays on; this is the second pass.
+    options.sendDefaultPii = false;
 
-      // Non-fatal events don't need stacktraces attached (smaller payload,
-      // less likely to carry frames with PHI). Fatal events keep them.
-      options.attachStacktrace = false;
+    // Non-fatal events don't need stacktraces attached (smaller payload,
+    // less likely to carry frames with PHI). Fatal events keep them.
+    options.attachStacktrace = false;
 
-      options.beforeSend = _scrubEvent;
-      options.beforeBreadcrumb = _scrubBreadcrumb;
-    },
-    appRunner: runner,
-  );
+    options.beforeSend = _scrubEvent;
+    options.beforeBreadcrumb = _scrubBreadcrumb;
+  }, appRunner: runner);
 }
 
 /// PHI deny-list. Matched case-insensitively against key names anywhere in

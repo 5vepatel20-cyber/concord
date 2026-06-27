@@ -58,15 +58,19 @@ class AuthController extends AsyncNotifier<AuthSessionView> {
   }) async {
     state = const AsyncLoading();
     try {
-      final res = await ref.read(supabaseClientProvider).auth
+      final res = await ref
+          .read(supabaseClientProvider)
+          .auth
           .signInWithPassword(email: email.trim(), password: password);
       final user = res.user;
       if (user == null) {
-        return const Err(AppError(
-          kind: AppErrorKind.server,
-          code: 'signin_no_user',
-          message: 'Sign-in did not return a user.',
-        ));
+        return const Err(
+          AppError(
+            kind: AppErrorKind.server,
+            code: 'signin_no_user',
+            message: 'Sign-in did not return a user.',
+          ),
+        );
       }
       final view = AuthSessionView(
         userId: user.id,
@@ -97,20 +101,26 @@ class AuthController extends AsyncNotifier<AuthSessionView> {
   }) async {
     state = const AsyncLoading();
     try {
-      final res = await ref.read(supabaseClientProvider).auth.signUp(
+      final res = await ref
+          .read(supabaseClientProvider)
+          .auth
+          .signUp(
             email: email.trim(),
             password: password,
             data: {
-              if (fullName != null && fullName.isNotEmpty) 'full_name': fullName,
+              if (fullName != null && fullName.isNotEmpty)
+                'full_name': fullName,
             },
           );
       final user = res.user;
       if (user == null) {
-        return const Err(AppError(
-          kind: AppErrorKind.server,
-          code: 'signup_no_user',
-          message: 'Sign-up did not return a user. Try again.',
-        ));
+        return const Err(
+          AppError(
+            kind: AppErrorKind.server,
+            code: 'signup_no_user',
+            message: 'Sign-up did not return a user. Try again.',
+          ),
+        );
       }
       final view = AuthSessionView(
         userId: user.id,
@@ -120,11 +130,13 @@ class AuthController extends AsyncNotifier<AuthSessionView> {
       state = AsyncData(view);
       return Ok(view);
     } on AuthException catch (e) {
-      return Err(AppError(
-        kind: AppErrorKind.badRequest,
-        code: 'signup_failed',
-        message: e.message,
-      ));
+      return Err(
+        AppError(
+          kind: AppErrorKind.badRequest,
+          code: 'signup_failed',
+          message: e.message,
+        ),
+      );
     } catch (e) {
       return Err(AppError.network(e));
     }
@@ -132,16 +144,19 @@ class AuthController extends AsyncNotifier<AuthSessionView> {
 
   Future<Result<void, AppError>> resetPassword({required String email}) async {
     try {
-      await ref.read(supabaseClientProvider).auth.resetPasswordForEmail(
-            email.trim(),
-          );
+      await ref
+          .read(supabaseClientProvider)
+          .auth
+          .resetPasswordForEmail(email.trim());
       return const Ok(null);
     } on AuthException catch (e) {
-      return Err(AppError(
-        kind: AppErrorKind.badRequest,
-        code: 'reset_failed',
-        message: e.message,
-      ));
+      return Err(
+        AppError(
+          kind: AppErrorKind.badRequest,
+          code: 'reset_failed',
+          message: e.message,
+        ),
+      );
     } catch (e) {
       return Err(AppError.network(e));
     }

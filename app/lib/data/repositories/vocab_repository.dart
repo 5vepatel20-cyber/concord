@@ -26,7 +26,9 @@ final vocabRepositoryProvider = Provider<VocabRepository>((ref) {
 });
 
 /// AsyncNotifier-style provider for the merged vocab snapshot.
-final vocabSnapshotProvider = FutureProvider<List<ConditionWithTerms>>((ref) async {
+final vocabSnapshotProvider = FutureProvider<List<ConditionWithTerms>>((
+  ref,
+) async {
   return ref.read(vocabRepositoryProvider).loadAll();
 });
 
@@ -79,20 +81,23 @@ class VocabRepository {
 
     // Build the merged snapshot.
     final byTermId = {for (final t in terms) t.id: t};
-    final snapshot = conditions.map((c) {
-      final panelId = c.proCtcaePanelId;
-      final panel = panelId == null
-          ? null
-          : panels.firstWhere(
-              (p) => p.id == panelId,
-              orElse: () => const VocabSymptomPanel(id: '', name: '', termIds: []),
-            );
-      final panelTerms = (panel?.termIds ?? const <String>[])
-          .map((tid) => byTermId[tid])
-          .whereType<VocabSymptomTerm>()
-          .toList(growable: false);
-      return ConditionWithTerms(condition: c, terms: panelTerms);
-    }).toList(growable: false);
+    final snapshot = conditions
+        .map((c) {
+          final panelId = c.proCtcaePanelId;
+          final panel = panelId == null
+              ? null
+              : panels.firstWhere(
+                  (p) => p.id == panelId,
+                  orElse: () =>
+                      const VocabSymptomPanel(id: '', name: '', termIds: []),
+                );
+          final panelTerms = (panel?.termIds ?? const <String>[])
+              .map((tid) => byTermId[tid])
+              .whereType<VocabSymptomTerm>()
+              .toList(growable: false);
+          return ConditionWithTerms(condition: c, terms: panelTerms);
+        })
+        .toList(growable: false);
 
     // Write-through to the local cache. We store a single snapshot blob so
     // loadAll() can read it back in one query; per-row keys would force us
@@ -100,30 +105,29 @@ class VocabRepository {
     final snapshotBlob = jsonEncode({
       '_fetched_at': now.millisecondsSinceEpoch,
       'conditions': {
-        for (final c in conditions) c.id: {
-          'id': c.id,
-          'display_name': c.displayName,
-          'category': c.category,
-          'icd10_code': c.icd10Code,
-          'pro_ctcae_panel_id': c.proCtcaePanelId,
-        },
+        for (final c in conditions)
+          c.id: {
+            'id': c.id,
+            'display_name': c.displayName,
+            'category': c.category,
+            'icd10_code': c.icd10Code,
+            'pro_ctcae_panel_id': c.proCtcaePanelId,
+          },
       },
       'terms': {
-        for (final t in terms) t.id: {
-          'id': t.id,
-          'display_name': t.displayName,
-          'body_system': t.bodySystem,
-          'pro_ctcae_code': t.proCtcaeCode,
-          'attributes': t.attributes,
-          'plain_language': t.plainLanguage,
-        },
+        for (final t in terms)
+          t.id: {
+            'id': t.id,
+            'display_name': t.displayName,
+            'body_system': t.bodySystem,
+            'pro_ctcae_code': t.proCtcaeCode,
+            'attributes': t.attributes,
+            'plain_language': t.plainLanguage,
+          },
       },
       'panels': {
-        for (final p in panels) p.id: {
-          'id': p.id,
-          'name': p.name,
-          'term_ids': p.termIds,
-        },
+        for (final p in panels)
+          p.id: {'id': p.id, 'name': p.name, 'term_ids': p.termIds},
       },
     });
     await db.putCachedVocab(
@@ -154,39 +158,40 @@ class VocabRepository {
     if (blob == null) return null;
 
     final parsed = jsonDecode(blob) as Map<String, dynamic>;
-    final newestFetched =
-        DateTime.fromMillisecondsSinceEpoch(parsed['_fetched_at'] as int);
+    final newestFetched = DateTime.fromMillisecondsSinceEpoch(
+      parsed['_fetched_at'] as int,
+    );
 
-    final conditions = (parsed['conditions'] as Map)
-        .values
+    final conditions = (parsed['conditions'] as Map).values
         .cast<Map<String, dynamic>>()
         .map(VocabCondition.fromJson)
         .toList(growable: false);
-    final terms = (parsed['terms'] as Map)
-        .values
+    final terms = (parsed['terms'] as Map).values
         .cast<Map<String, dynamic>>()
         .map(VocabSymptomTerm.fromJson)
         .toList(growable: false);
-    final panels = (parsed['panels'] as Map)
-        .values
+    final panels = (parsed['panels'] as Map).values
         .cast<Map<String, dynamic>>()
         .map(VocabSymptomPanel.fromJson)
         .toList(growable: false);
     final byTermId = {for (final t in terms) t.id: t};
-    final snapshot = conditions.map((c) {
-      final panelId = c.proCtcaePanelId;
-      final panel = panelId == null
-          ? null
-          : panels.firstWhere(
-              (p) => p.id == panelId,
-              orElse: () => const VocabSymptomPanel(id: '', name: '', termIds: []),
-            );
-      final panelTerms = (panel?.termIds ?? const <String>[])
-          .map((tid) => byTermId[tid])
-          .whereType<VocabSymptomTerm>()
-          .toList(growable: false);
-      return ConditionWithTerms(condition: c, terms: panelTerms);
-    }).toList(growable: false);
+    final snapshot = conditions
+        .map((c) {
+          final panelId = c.proCtcaePanelId;
+          final panel = panelId == null
+              ? null
+              : panels.firstWhere(
+                  (p) => p.id == panelId,
+                  orElse: () =>
+                      const VocabSymptomPanel(id: '', name: '', termIds: []),
+                );
+          final panelTerms = (panel?.termIds ?? const <String>[])
+              .map((tid) => byTermId[tid])
+              .whereType<VocabSymptomTerm>()
+              .toList(growable: false);
+          return ConditionWithTerms(condition: c, terms: panelTerms);
+        })
+        .toList(growable: false);
 
     return _CachedSnapshot(fetchedAt: newestFetched, snapshot: snapshot);
   }

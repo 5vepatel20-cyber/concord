@@ -65,14 +65,13 @@ class HealthSnapshot {
     double? sleepHoursLastNight,
     double? weightKg,
     DateTime? fetchedAt,
-  }) =>
-      HealthSnapshot(
-        steps: steps ?? this.steps,
-        avgHeartRateBpm: avgHeartRateBpm ?? this.avgHeartRateBpm,
-        sleepHoursLastNight: sleepHoursLastNight ?? this.sleepHoursLastNight,
-        weightKg: weightKg ?? this.weightKg,
-        fetchedAt: fetchedAt ?? this.fetchedAt,
-      );
+  }) => HealthSnapshot(
+    steps: steps ?? this.steps,
+    avgHeartRateBpm: avgHeartRateBpm ?? this.avgHeartRateBpm,
+    sleepHoursLastNight: sleepHoursLastNight ?? this.sleepHoursLastNight,
+    weightKg: weightKg ?? this.weightKg,
+    fetchedAt: fetchedAt ?? this.fetchedAt,
+  );
 }
 
 final healthRepositoryProvider = Provider<HealthRepository>((ref) {
@@ -136,18 +135,22 @@ class HealthRepository {
     final todayPoints = await _safeGet(_kReadTypes, todayStart, n);
 
     // Sleep: previous evening → today's noon, so a nap is captured too.
-    final sleepStart = DateTime(n.year, n.month, n.day, 0)
-        .subtract(const Duration(hours: 6));
+    final sleepStart = DateTime(
+      n.year,
+      n.month,
+      n.day,
+      0,
+    ).subtract(const Duration(hours: 6));
     final sleepEnd = DateTime(n.year, n.month, n.day, 12);
-    final sleepPoints =
-        await _safeGet([HealthDataType.SLEEP_ASLEEP], sleepStart, sleepEnd);
+    final sleepPoints = await _safeGet(
+      [HealthDataType.SLEEP_ASLEEP],
+      sleepStart,
+      sleepEnd,
+    );
 
     return HealthSnapshot(
       steps: _sumNumeric(todayPoints, HealthDataType.STEPS).toInt(),
-      avgHeartRateBpm: _averageNumeric(
-        todayPoints,
-        HealthDataType.HEART_RATE,
-      ),
+      avgHeartRateBpm: _averageNumeric(todayPoints, HealthDataType.HEART_RATE),
       sleepHoursLastNight: _sumHours(sleepPoints),
       weightKg: _latestNumeric(todayPoints, HealthDataType.WEIGHT),
       fetchedAt: n,
@@ -234,7 +237,8 @@ class HealthRepository {
           'measured_at': now.toUtc().toIso8601String(),
         });
       }
-      if (snapshot.avgHeartRateBpm != null && !snapshot.avgHeartRateBpm!.isNaN) {
+      if (snapshot.avgHeartRateBpm != null &&
+          !snapshot.avgHeartRateBpm!.isNaN) {
         samples.add({
           'type': 'hr',
           'value': snapshot.avgHeartRateBpm!.round(),
@@ -242,7 +246,8 @@ class HealthRepository {
           'measured_at': now.toUtc().toIso8601String(),
         });
       }
-      if (snapshot.sleepHoursLastNight != null && !snapshot.sleepHoursLastNight!.isNaN) {
+      if (snapshot.sleepHoursLastNight != null &&
+          !snapshot.sleepHoursLastNight!.isNaN) {
         samples.add({
           'type': 'sleep',
           'value': snapshot.sleepHoursLastNight,

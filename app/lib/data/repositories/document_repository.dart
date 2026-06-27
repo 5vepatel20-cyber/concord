@@ -23,26 +23,23 @@ class DocumentDecodeResult {
 
   List<Map<String, dynamic>> get extractedLabs =>
       (extraction['extracted_labs'] as List<dynamic>?)
-          ?.cast<Map<String, dynamic>>() ?? [];
+          ?.cast<Map<String, dynamic>>() ??
+      [];
 
   List<String> get medications =>
-      (extraction['medications'] as List<dynamic>?)
-          ?.cast<String>() ?? [];
+      (extraction['medications'] as List<dynamic>?)?.cast<String>() ?? [];
 
   List<String> get diagnoses =>
-      (extraction['diagnoses'] as List<dynamic>?)
-          ?.cast<String>() ?? [];
+      (extraction['diagnoses'] as List<dynamic>?)?.cast<String>() ?? [];
 
   List<String> get suggestedQuestions =>
-      (extraction['suggested_questions'] as List<dynamic>?)
-          ?.cast<String>() ?? [];
+      (extraction['suggested_questions'] as List<dynamic>?)?.cast<String>() ??
+      [];
 
   List<String> get criticalFlags =>
-      (extraction['critical_flags'] as List<dynamic>?)
-          ?.cast<String>() ?? [];
+      (extraction['critical_flags'] as List<dynamic>?)?.cast<String>() ?? [];
 
-  String get docType =>
-      extraction['doc_type'] as String? ?? 'Unknown';
+  String get docType => extraction['doc_type'] as String? ?? 'Unknown';
 }
 
 class DocumentRepository {

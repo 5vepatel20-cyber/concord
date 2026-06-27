@@ -26,6 +26,20 @@ final symptomRepositoryProvider = Provider<SymptomRepository>((ref) {
   return SymptomRepository(ref);
 });
 
+class SymptomResponseEntry {
+  const SymptomResponseEntry({
+    required this.termId,
+    required this.proCtcaeCode,
+    required this.grade,
+    this.bodyLocation,
+  });
+
+  final String termId;
+  final String proCtcaeCode;
+  final int grade;
+  final String? bodyLocation;
+}
+
 class SymptomReportInput {
   const SymptomReportInput({
     required this.responses,
@@ -35,10 +49,10 @@ class SymptomReportInput {
     this.notes,
   });
 
-  /// Map keyed by symptom_term_id; value is the chosen severity grade (0..3).
-  /// Using a Map rather than a List to preserve order of choice + allow
-  /// easy dedup at the boundary.
-  final Map<String, int> responses;
+  /// One entry per symptom selected by the patient. Each includes the term's
+  /// PRO-CTCAE code, the chosen severity grade (0-3), and an optional body
+  /// location for pain-type symptoms.
+  final List<SymptomResponseEntry> responses;
 
   /// UTC timestamp of when the symptom occurred (may be in the past).
   final DateTime occurredAt;
@@ -89,6 +103,17 @@ class SymptomRepository {
       final clock = _ref.read(clockProvider);
 
       final localId = _uuid.v4();
+      final responsesPayload = input.responses.map((r) {
+        final presence = r.grade > 0;
+        return {
+          'pro_ctcae_code': r.proCtcaeCode,
+          if (r.grade > 0) 'frequency': r.grade,
+          if (r.grade > 0) 'severity': r.grade,
+          if (r.grade >= 2) 'interference': r.grade - 1,
+          'presence': presence,
+          if (r.bodyLocation != null) 'body_location': r.bodyLocation,
+        };
+      }).toList();
       final payload = jsonEncode({
         'local_id': localId,
         'occurred_at': input.occurredAt.toUtc().toIso8601String(),
@@ -96,8 +121,8 @@ class SymptomRepository {
         'recall_window': input.recallWindow == RecallWindow.past7Days
             ? 'past_7_days'
             : 'now',
-        'notes': input.notes,
-        'responses': input.responses,
+        'free_text': input.notes,
+        'responses': responsesPayload,
       });
 
       await db.enqueueSymptomReport(
@@ -119,11 +144,13 @@ class SymptomRepository {
           serverId: result.serverId,
           syncedAt: clock.nowUtc(),
         );
-        return Ok(SymptomSubmitReceipt(
-          localId: localId,
-          serverId: result.serverId,
-          emergencyGuidance: result.emergencyGuidance,
-        ));
+        return Ok(
+          SymptomSubmitReceipt(
+            localId: localId,
+            serverId: result.serverId,
+            emergencyGuidance: result.emergencyGuidance,
+          ),
+        );
       } catch (_) {
         // Network/timeout/server error — fall through to the sync drain.
         // ignore: discarded_futures
@@ -131,12 +158,14 @@ class SymptomRepository {
         return Ok(SymptomSubmitReceipt(localId: localId));
       }
     } catch (e) {
-      return Err(AppError(
-        kind: AppErrorKind.database,
-        code: 'enqueue_failed',
-        message: 'Could not save symptom locally',
-        cause: e,
-      ));
+      return Err(
+        AppError(
+          kind: AppErrorKind.database,
+          code: 'enqueue_failed',
+          message: 'Could not save symptom locally',
+          cause: e,
+        ),
+      );
     }
   }
 
@@ -198,7 +227,9 @@ class SymptomRepository {
 
     return SubmitOnlineResult(
       serverId: reportId,
-      emergencyGuidance: (guidanceText == null || guidanceText.isEmpty) ? null : guidanceText,
+      emergencyGuidance: (guidanceText == null || guidanceText.isEmpty)
+          ? null
+          : guidanceText,
     );
   }
 }

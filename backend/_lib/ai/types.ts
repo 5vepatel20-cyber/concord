@@ -22,11 +22,18 @@ export interface CitationSource {
   title?: string;
 }
 
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
 /** A single chunk from a streaming chat completion. */
 export interface ChatChunk {
   text: string;
   done: boolean;
   citations?: CitationSource[];
+  usage?: TokenUsage;
 }
 
 export interface AIProvider {

@@ -70,10 +70,7 @@ Future<bool> initPosthogIfOptedIn() async {
 /// user has explicitly opted in by toggling analytics on, so this is allowed).
 void identifyPosthogUser(String userId, {String? email}) {
   if (email != null) {
-    Posthog().identify(
-      userId: userId,
-      userProperties: {'email': email},
-    );
+    Posthog().identify(userId: userId, userProperties: {'email': email});
   } else {
     Posthog().identify(userId: userId);
   }

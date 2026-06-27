@@ -6,6 +6,9 @@ import { z } from "zod";
 const EnvSchema = z.object({
   // AI
   GEMINI_API_KEY: z.string().min(20),
+  ANTHROPIC_API_KEY: z.string().min(20).optional(),
+  AI_PRIMARY: z.enum(["gemini", "claude"]).default("gemini"),
+  AI_FALLBACK: z.enum(["gemini", "claude"]).optional(),
 
   // Supabase
   SUPABASE_URL: z.string().url(),

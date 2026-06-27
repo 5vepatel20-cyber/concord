@@ -75,11 +75,12 @@ class SyncService {
   bool _draining = false;
 
   void _wire() {
-    _connSub = Connectivity()
-        .onConnectivityChanged
-        .listen(_onConnectivityChanged);
-    _authSub =
-        _ref.read(supabaseClientProvider).auth.onAuthStateChange.listen((event) {
+    _connSub = Connectivity().onConnectivityChanged.listen(
+      _onConnectivityChanged,
+    );
+    _authSub = _ref.read(supabaseClientProvider).auth.onAuthStateChange.listen((
+      event,
+    ) {
       if (event.event == AuthChangeEvent.signedIn) {
         unawaited(drain());
       }

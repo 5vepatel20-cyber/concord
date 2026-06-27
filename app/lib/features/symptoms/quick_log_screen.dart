@@ -16,6 +16,7 @@ import '../../data/models/condition.dart';
 import '../../data/repositories/symptom_repository.dart';
 import '../../data/repositories/vocab_repository.dart';
 import '../../theme/tokens.dart';
+import '../../widgets/body_location_picker.dart';
 import '../../widgets/severity_chip.dart';
 import '../../widgets/severity_scale.dart';
 
@@ -122,6 +123,8 @@ class _QuickLogForm extends ConsumerStatefulWidget {
 class _QuickLogFormState extends ConsumerState<_QuickLogForm> {
   String? _selectedConditionId;
   final Map<String, int> _responses = {}; // symptom_term_id -> grade
+  final Map<String, String> _bodyLocations =
+      {}; // symptom_term_id -> body region
   final _notes = TextEditingController();
   String _source = 'self';
   RecallWindow _recall = RecallWindow.now;
@@ -257,11 +260,22 @@ class _QuickLogFormState extends ConsumerState<_QuickLogForm> {
       _error = null;
       _emergencyGuidance = null;
     });
+    final entries = _termsForCondition
+        .where((t) => _responses.containsKey(t.id))
+        .map(
+          (t) => SymptomResponseEntry(
+            termId: t.id,
+            proCtcaeCode: t.proCtcaeCode,
+            grade: _responses[t.id]!,
+            bodyLocation: _bodyLocations[t.id],
+          ),
+        )
+        .toList();
     final res = await ref
         .read(symptomRepositoryProvider)
         .submit(
           SymptomReportInput(
-            responses: Map.unmodifiable(_responses),
+            responses: entries,
             occurredAt: _recall == RecallWindow.past7Days
                 ? DateTime.now().subtract(const Duration(days: 3)).toUtc()
                 : DateTime.now().toUtc(),
@@ -324,6 +338,7 @@ class _QuickLogFormState extends ConsumerState<_QuickLogForm> {
           onSelected: (id) => setState(() {
             _selectedConditionId = id;
             _responses.clear();
+            _bodyLocations.clear();
           }),
         ),
         if (_selectedConditionId != null) ...[
@@ -343,8 +358,17 @@ class _QuickLogFormState extends ConsumerState<_QuickLogForm> {
                 onChanged: (grade) => setState(() {
                   if (grade == null) {
                     _responses.remove(term.id);
+                    _bodyLocations.remove(term.id);
                   } else {
                     _responses[term.id] = grade;
+                  }
+                }),
+                bodyLocation: _bodyLocations[term.id],
+                onBodyLocationChanged: (loc) => setState(() {
+                  if (loc == null) {
+                    _bodyLocations.remove(term.id);
+                  } else {
+                    _bodyLocations[term.id] = loc;
                   }
                 }),
               ),
@@ -485,11 +509,17 @@ class _SymptomRow extends StatelessWidget {
     required this.term,
     required this.selectedGrade,
     required this.onChanged,
+    this.bodyLocation,
+    this.onBodyLocationChanged,
   });
 
   final VocabSymptomTerm term;
   final int? selectedGrade;
   final ValueChanged<int?> onChanged;
+  final String? bodyLocation;
+  final ValueChanged<String?>? onBodyLocationChanged;
+
+  bool get _isPain => term.proCtcaeCode.startsWith('P');
 
   @override
   Widget build(BuildContext context) {
@@ -499,7 +529,19 @@ class _SymptomRow extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(term.displayName, style: t.textTheme.bodyLarge),
+          Row(
+            children: [
+              Expanded(
+                child: Text(term.displayName, style: t.textTheme.bodyLarge),
+              ),
+              if (_isPain)
+                Icon(
+                  Icons.person_pin_circle_outlined,
+                  size: 16,
+                  color: Neutrals.hint,
+                ),
+            ],
+          ),
           if (term.plainLanguage != null && term.plainLanguage!.isNotEmpty) ...[
             const SizedBox(height: Space.s1),
             Text(
@@ -513,6 +555,13 @@ class _SymptomRow extends StatelessWidget {
             selectedGrade: selectedGrade,
             onChanged: onChanged,
           ),
+          if (_isPain && selectedGrade != null && selectedGrade! > 0) ...[
+            const SizedBox(height: Space.s3),
+            BodyLocationPicker(
+              selectedLocation: bodyLocation,
+              onChanged: onBodyLocationChanged ?? (_) {},
+            ),
+          ],
         ],
       ),
     );

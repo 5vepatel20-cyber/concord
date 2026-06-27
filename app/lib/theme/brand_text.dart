@@ -19,8 +19,8 @@ class NumericText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = (style ?? Theme.of(context).textTheme.bodyMedium) ??
-        const TextStyle();
+    final base =
+        (style ?? Theme.of(context).textTheme.bodyMedium) ?? const TextStyle();
     return Text(
       data,
       style: base.merge(numericTextStyle),

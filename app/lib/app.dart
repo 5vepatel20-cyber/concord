@@ -57,6 +57,7 @@ import 'features/alerts/alert_list_screen.dart';
 import 'features/alerts/escalation_policy_screen.dart';
 import 'features/messages/inbox_screen.dart';
 import 'features/messages/message_thread_screen.dart';
+import 'features/tasks/tasks_screen.dart';
 import 'theme/theme_data.dart';
 
 class ConcordApp extends ConsumerStatefulWidget {
@@ -293,6 +294,9 @@ GoRouter _buildRouter(WidgetRef ref) {
           return MessageThreadScreen(conversationId: convId);
         },
       ),
+
+      // CARE-04: Task list. Full-screen push from Profile / Home.
+      GoRoute(path: '/tasks', builder: (_, _) => const TasksScreen()),
 
       // Authenticated shell — 5 branches.
       StatefulShellRoute.indexedStack(

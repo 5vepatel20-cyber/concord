@@ -53,8 +53,9 @@ const String _medChannelDesc =
 const String kMedicationReminderPayload = '/medications';
 
 /// Singleton so the medication list screen and main.dart share state.
-final medicationReminderServiceProvider =
-    Provider<MedicationReminderService>((ref) => MedicationReminderService._());
+final medicationReminderServiceProvider = Provider<MedicationReminderService>(
+  (ref) => MedicationReminderService._(),
+);
 
 class MedicationReminderService {
   MedicationReminderService._();
@@ -108,8 +109,9 @@ class MedicationReminderService {
   ///
   /// Returns the empty list for `as_needed` and for daily/weekly with
   /// no times set (no reminder is appropriate).
-  static List<({int slot, int hour, int minute, Weekday? day})>
-      slotsFor(Medication m) {
+  static List<({int slot, int hour, int minute, Weekday? day})> slotsFor(
+    Medication m,
+  ) {
     final s = m.schedule;
     if (s.frequency == MedFrequency.asNeeded) return const [];
     if (s.times.isEmpty) return const [];
@@ -128,9 +130,7 @@ class MedicationReminderService {
       } else {
         // weekly: fan out across each day. If no days selected, fall back
         // to "every day of the week" so the reminder still fires.
-        final days = s.days.isEmpty
-            ? Weekday.values
-            : s.days;
+        final days = s.days.isEmpty ? Weekday.values : s.days;
         for (final d in days) {
           slots.add((slot: i, hour: h, minute: min, day: d));
           i += 1;
@@ -158,14 +158,14 @@ class MedicationReminderService {
 
   /// Map a [Weekday] to `DateTime.monday..sunday` (1..7). tz uses 1..7 too.
   static int _weekdayToDateTime(Weekday w) => switch (w) {
-        Weekday.mon => DateTime.monday,
-        Weekday.tue => DateTime.tuesday,
-        Weekday.wed => DateTime.wednesday,
-        Weekday.thu => DateTime.thursday,
-        Weekday.fri => DateTime.friday,
-        Weekday.sat => DateTime.saturday,
-        Weekday.sun => DateTime.sunday,
-      };
+    Weekday.mon => DateTime.monday,
+    Weekday.tue => DateTime.tuesday,
+    Weekday.wed => DateTime.wednesday,
+    Weekday.thu => DateTime.thursday,
+    Weekday.fri => DateTime.friday,
+    Weekday.sat => DateTime.saturday,
+    Weekday.sun => DateTime.sunday,
+  };
 
   /// Schedule a single dose-slot notification. Pure orchestration — the
   /// time math is done by [nextInstanceOfTime] (daily) or a manual
@@ -325,9 +325,12 @@ class MedicationReminderService {
     if (_permissionRequested) return true;
     _permissionRequested = true;
     if (Platform.isIOS) {
-      final iosImpl = _plugin.resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin>();
-      final granted = await iosImpl?.requestPermissions(
+      final iosImpl = _plugin
+          .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin
+          >();
+      final granted =
+          await iosImpl?.requestPermissions(
             alert: true,
             badge: true,
             sound: true,
@@ -336,10 +339,12 @@ class MedicationReminderService {
       return granted;
     }
     if (Platform.isAndroid) {
-      final androidImpl = _plugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-      final granted = await androidImpl?.requestNotificationsPermission() ??
-          false;
+      final androidImpl = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      final granted =
+          await androidImpl?.requestNotificationsPermission() ?? false;
       return granted;
     }
     return false;

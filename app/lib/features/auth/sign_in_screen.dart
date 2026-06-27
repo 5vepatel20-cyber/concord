@@ -35,10 +35,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       _busy = true;
       _error = null;
     });
-    final res = await ref.read(authControllerProvider.notifier).signIn(
-          email: _email.text,
-          password: _password.text,
-        );
+    final res = await ref
+        .read(authControllerProvider.notifier)
+        .signIn(email: _email.text, password: _password.text);
     if (!mounted) return;
     switch (res) {
       case Ok():
@@ -67,7 +66,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 const SizedBox(height: Space.s2),
                 Text(
                   'Concord is not a medical device. Your data stays between you and your care team.',
-                  style: t.textTheme.bodyMedium?.copyWith(color: Neutrals.slate),
+                  style: t.textTheme.bodyMedium?.copyWith(
+                    color: Neutrals.slate,
+                  ),
                 ),
                 const SizedBox(height: Space.s6),
                 TextFormField(
@@ -94,19 +95,29 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: Space.s4),
-                  Text(_error!, style: t.textTheme.bodySmall?.copyWith(color: SeverityColors.severe)),
+                  Text(
+                    _error!,
+                    style: t.textTheme.bodySmall?.copyWith(
+                      color: SeverityColors.severe,
+                    ),
+                  ),
                 ],
                 const SizedBox(height: Space.s5),
                 FilledButton(
                   onPressed: _busy ? null : _submit,
                   child: _busy
                       ? const SizedBox(
-                          height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Sign in'),
                 ),
                 const SizedBox(height: Space.s3),
                 TextButton(
-                  onPressed: _busy ? null : () => context.push('/forgot-password'),
+                  onPressed: _busy
+                      ? null
+                      : () => context.push('/forgot-password'),
                   child: const Text('Forgot password?'),
                 ),
                 const SizedBox(height: Space.s2),

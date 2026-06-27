@@ -22,6 +22,7 @@ const QuickSchema = z.object({
       z.object({
         pro_ctcae_code: z.string().min(1).max(20),
         grade: z.number().int().min(0).max(3),
+        body_location: z.string().max(200).nullable().optional(),
       }),
     )
     .min(1)
@@ -106,7 +107,7 @@ export const POST = async (req: Request): Promise<Response> => {
       interference: attrs.interference,
       presence: attrs.presence,
       amount: attrs.amount,
-      body_location: null,
+      body_location: r.body_location ?? null,
     };
   });
 
@@ -126,7 +127,7 @@ export const POST = async (req: Request): Promise<Response> => {
       term_id: termId ?? r.pro_ctcae_code,
       pro_ctcae_code: r.pro_ctcae_code,
       composite_grade: r.grade as Grade,
-      body_location: null,
+      body_location: r.body_location ?? null,
     };
   });
 

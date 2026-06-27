@@ -27,15 +27,15 @@ import 'package:timezone/timezone.dart' as tz;
 const int _dailyCheckInId = 1001;
 const String _channelId = 'concord.daily_check_in';
 const String _channelName = 'Daily check-in';
-const String _channelDesc =
-    'A daily reminder to log how you are feeling.';
+const String _channelDesc = 'A daily reminder to log how you are feeling.';
 
 const String kDailyCheckInPayload = '/log';
 
 /// State holder + cache for the plugin. Riverpod provides the singleton so
 /// the settings screen and main.dart share the same instance.
-final notificationServiceProvider =
-    Provider<NotificationService>((ref) => NotificationService._());
+final notificationServiceProvider = Provider<NotificationService>(
+  (ref) => NotificationService._(),
+);
 
 class NotificationService {
   NotificationService._();
@@ -114,9 +114,12 @@ class NotificationService {
     if (!_initialized) await init();
 
     if (Platform.isIOS) {
-      final iosImpl = _plugin.resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin>();
-      final granted = await iosImpl?.requestPermissions(
+      final iosImpl = _plugin
+          .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin
+          >();
+      final granted =
+          await iosImpl?.requestPermissions(
             alert: true,
             badge: true,
             sound: true,
@@ -125,10 +128,12 @@ class NotificationService {
       return granted;
     }
     if (Platform.isAndroid) {
-      final androidImpl = _plugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-      final granted = await androidImpl?.requestNotificationsPermission() ??
-          false;
+      final androidImpl = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      final granted =
+          await androidImpl?.requestNotificationsPermission() ?? false;
       return granted;
     }
     return false;
@@ -228,14 +233,7 @@ class TimeOfDayHHMM {
 /// just opened the app, they don't need a notification immediately.
 tz.TZDateTime nextInstanceOfTime(int hour, int minute, {DateTime? now}) {
   final n = now ?? tz.TZDateTime.now(tz.local);
-  var scheduled = tz.TZDateTime(
-    tz.local,
-    n.year,
-    n.month,
-    n.day,
-    hour,
-    minute,
-  );
+  var scheduled = tz.TZDateTime(tz.local, n.year, n.month, n.day, hour, minute);
   if (!scheduled.isAfter(n)) {
     scheduled = scheduled.add(const Duration(days: 1));
   }

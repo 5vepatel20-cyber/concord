@@ -27,13 +27,9 @@ class SeverityChip extends StatelessWidget {
     final radius = isSmall ? Radii.sm : Radii.md;
 
     // Severity ramp bg at 12% opacity per BRAND.md §6 (chip spec).
-    final bg = outlined
-        ? Neutrals.surface
-        : color.withValues(alpha: 0.12);
+    final bg = outlined ? Neutrals.surface : color.withValues(alpha: 0.12);
 
-    final border = outlined
-        ? Border.all(color: color, width: 1)
-        : null;
+    final border = outlined ? Border.all(color: color, width: 1) : null;
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),

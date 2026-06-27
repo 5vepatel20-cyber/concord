@@ -32,13 +32,12 @@ class SettingsState {
     String? consentVersion,
     bool? dailyCheckInEnabled,
     TimeOfDayHHMM? dailyCheckInTime,
-  }) =>
-      SettingsState(
-        posthogOptIn: posthogOptIn ?? this.posthogOptIn,
-        consentVersion: consentVersion ?? this.consentVersion,
-        dailyCheckInEnabled: dailyCheckInEnabled ?? this.dailyCheckInEnabled,
-        dailyCheckInTime: dailyCheckInTime ?? this.dailyCheckInTime,
-      );
+  }) => SettingsState(
+    posthogOptIn: posthogOptIn ?? this.posthogOptIn,
+    consentVersion: consentVersion ?? this.consentVersion,
+    dailyCheckInEnabled: dailyCheckInEnabled ?? this.dailyCheckInEnabled,
+    dailyCheckInTime: dailyCheckInTime ?? this.dailyCheckInTime,
+  );
 }
 
 class SettingsController extends AsyncNotifier<SettingsState> {
@@ -57,7 +56,8 @@ class SettingsController extends AsyncNotifier<SettingsState> {
       dailyCheckInEnabled: prefs.getBool(_kCheckInEnabled) ?? false,
       dailyCheckInTime: TimeOfDayHHMM(
         prefs.getInt(_kCheckInHour) ?? TimeOfDayHHMM.defaultCheckInTime.hour,
-        prefs.getInt(_kCheckInMinute) ?? TimeOfDayHHMM.defaultCheckInTime.minute,
+        prefs.getInt(_kCheckInMinute) ??
+            TimeOfDayHHMM.defaultCheckInTime.minute,
       ),
     );
   }
@@ -97,7 +97,9 @@ class SettingsController extends AsyncNotifier<SettingsState> {
       time: s.dailyCheckInTime,
       enabled: enabled,
     );
-    state = AsyncData(state.requireValue.copyWith(dailyCheckInEnabled: enabled));
+    state = AsyncData(
+      state.requireValue.copyWith(dailyCheckInEnabled: enabled),
+    );
   }
 
   Future<void> setDailyCheckInTime(TimeOfDayHHMM time) async {
@@ -117,5 +119,5 @@ class SettingsController extends AsyncNotifier<SettingsState> {
 
 final settingsControllerProvider =
     AsyncNotifierProvider<SettingsController, SettingsState>(
-  SettingsController.new,
-);
+      SettingsController.new,
+    );

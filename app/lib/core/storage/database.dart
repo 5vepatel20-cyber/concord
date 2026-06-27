@@ -72,20 +72,20 @@ class AppDatabase extends GeneratedDatabase implements DatabaseLike {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) async {
-          await _createV1(m.database);
-          await _createV2(m.database);
-        },
-        onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            await _createV2(m.database);
-          }
-        },
-        beforeOpen: (details) async {
-          await customStatement('PRAGMA journal_mode = WAL;');
-          await customStatement('PRAGMA foreign_keys = ON;');
-        },
-      );
+    onCreate: (m) async {
+      await _createV1(m.database);
+      await _createV2(m.database);
+    },
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await _createV2(m.database);
+      }
+    },
+    beforeOpen: (details) async {
+      await customStatement('PRAGMA journal_mode = WAL;');
+      await customStatement('PRAGMA foreign_keys = ON;');
+    },
+  );
 
   static Future<void> _createV1(DatabaseConnectionUser db) async {
     await db.customStatement('''
@@ -167,14 +167,16 @@ class AppDatabase extends GeneratedDatabase implements DatabaseLike {
       'ORDER BY created_at ASC',
     ).get();
     return result
-        .map((r) => PendingSymptomReport(
-              localId: r.read<String>('local_id'),
-              payloadJson: r.read<String>('payload_json'),
-              createdAt: DateTime.fromMillisecondsSinceEpoch(
-                r.read<int>('created_at'),
-              ),
-              syncError: r.readNullable<String>('sync_error'),
-            ))
+        .map(
+          (r) => PendingSymptomReport(
+            localId: r.read<String>('local_id'),
+            payloadJson: r.read<String>('payload_json'),
+            createdAt: DateTime.fromMillisecondsSinceEpoch(
+              r.read<int>('created_at'),
+            ),
+            syncError: r.readNullable<String>('sync_error'),
+          ),
+        )
         .toList(growable: false);
   }
 
@@ -246,14 +248,16 @@ class AppDatabase extends GeneratedDatabase implements DatabaseLike {
       'ORDER BY created_at ASC',
     ).get();
     return result
-        .map((r) => PendingSymptomReport(
-              localId: r.read<String>('local_id'),
-              payloadJson: r.read<String>('payload_json'),
-              createdAt: DateTime.fromMillisecondsSinceEpoch(
-                r.read<int>('created_at'),
-              ),
-              syncError: r.readNullable<String>('sync_error'),
-            ))
+        .map(
+          (r) => PendingSymptomReport(
+            localId: r.read<String>('local_id'),
+            payloadJson: r.read<String>('payload_json'),
+            createdAt: DateTime.fromMillisecondsSinceEpoch(
+              r.read<int>('created_at'),
+            ),
+            syncError: r.readNullable<String>('sync_error'),
+          ),
+        )
         .toList(growable: false);
   }
 
@@ -294,13 +298,15 @@ class AppDatabase extends GeneratedDatabase implements DatabaseLike {
       'ORDER BY updated_at DESC',
     ).get();
     return result
-        .map((r) => CachedMedication(
-              serverId: r.read<String>('server_id'),
-              payloadJson: r.read<String>('payload_json'),
-              updatedAt: DateTime.fromMillisecondsSinceEpoch(
-                r.read<int>('updated_at'),
-              ),
-            ))
+        .map(
+          (r) => CachedMedication(
+            serverId: r.read<String>('server_id'),
+            payloadJson: r.read<String>('payload_json'),
+            updatedAt: DateTime.fromMillisecondsSinceEpoch(
+              r.read<int>('updated_at'),
+            ),
+          ),
+        )
         .toList(growable: false);
   }
 
@@ -336,17 +342,18 @@ class AppDatabase extends GeneratedDatabase implements DatabaseLike {
       'ORDER BY created_at ASC',
     ).get();
     return result
-        .map((r) => PendingAdherenceDraft(
-              localId: r.read<String>('local_id'),
-              payloadJson: r.read<String>('payload_json'),
-              medicationLocalId: r.readNullable<String>('medication_local_id'),
-              medicationServerId:
-                  r.readNullable<String>('medication_server_id'),
-              createdAt: DateTime.fromMillisecondsSinceEpoch(
-                r.read<int>('created_at'),
-              ),
-              syncError: r.readNullable<String>('sync_error'),
-            ))
+        .map(
+          (r) => PendingAdherenceDraft(
+            localId: r.read<String>('local_id'),
+            payloadJson: r.read<String>('payload_json'),
+            medicationLocalId: r.readNullable<String>('medication_local_id'),
+            medicationServerId: r.readNullable<String>('medication_server_id'),
+            createdAt: DateTime.fromMillisecondsSinceEpoch(
+              r.read<int>('created_at'),
+            ),
+            syncError: r.readNullable<String>('sync_error'),
+          ),
+        )
         .toList(growable: false);
   }
 

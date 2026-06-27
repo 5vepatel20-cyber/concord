@@ -64,21 +64,36 @@ export class GeminiProvider implements AIProvider {
       if (text) yield { text, done: false };
     }
 
-    // ATLAS-06: Extract citation metadata from the aggregated response.
+    // Extract citation metadata + token usage from the aggregated response.
     try {
       const aggregated = await result.response;
+      const extra: Partial<ChatChunk> = {};
+
+      // ATLAS-06: Citations.
       const sources = aggregated.candidates?.[0]?.citationMetadata?.citationSources;
       if (sources && sources.length > 0) {
         const citations: Array<{ uri: string }> = [];
         for (const s of sources) {
           if (s.uri) citations.push({ uri: s.uri });
         }
-        if (citations.length > 0) {
-          yield { text: "", done: false, citations };
-        }
+        if (citations.length > 0) extra.citations = citations;
+      }
+
+      // AI-08: Token usage.
+      const usageMeta = aggregated.usageMetadata;
+      if (usageMeta) {
+        extra.usage = {
+          promptTokens: usageMeta.promptTokenCount ?? 0,
+          completionTokens: usageMeta.candidatesTokenCount ?? 0,
+          totalTokens: usageMeta.totalTokenCount ?? 0,
+        };
+      }
+
+      if (extra.citations || extra.usage) {
+        yield { text: "", done: false, ...extra };
       }
     } catch {
-      // Citations are best-effort; never crash the stream.
+      // Aggregated response extras are best-effort; never crash the stream.
     }
 
     yield { text: "", done: true };

@@ -169,6 +169,23 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
 
+            // CARE-04: Multi-caregiver task coordination.
+            const SizedBox(height: Space.s5),
+            _SectionHeader('Tasks'),
+            _SettingsCard(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.checklist_outlined),
+                  title: const Text('Care tasks'),
+                  subtitle: const Text(
+                    'View and manage tasks for your care team.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/tasks'),
+                ),
+              ],
+            ),
+
             // Manual vitals entry (HK-03) + health metrics history (HK-04).
             const SizedBox(height: Space.s5),
             _SectionHeader('Vitals'),

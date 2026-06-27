@@ -73,7 +73,10 @@ class PlaceholderTab extends StatelessWidget {
             children: [
               Text(title, style: t.textTheme.headlineSmall),
               const SizedBox(height: Space.s2),
-              Text(note, style: t.textTheme.bodyMedium?.copyWith(color: Neutrals.slate)),
+              Text(
+                note,
+                style: t.textTheme.bodyMedium?.copyWith(color: Neutrals.slate),
+              ),
             ],
           ),
         ),

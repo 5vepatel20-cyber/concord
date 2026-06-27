@@ -100,8 +100,6 @@ TextTheme buildConcordTextTheme() {
 /// Numeric / clinical-data style. Tabular numerals ON. Use for grades, vitals, labs, %.
 const TextStyle numericTextStyle = TextStyle(
   fontFamily: _fontFamily,
-  fontFeatures: <FontFeature>[
-    FontFeature.tabularFigures(),
-  ],
+  fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
   fontWeight: FontWeight.w500,
 );
