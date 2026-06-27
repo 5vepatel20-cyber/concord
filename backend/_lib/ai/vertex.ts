@@ -64,7 +64,7 @@ export class VertexAIProvider implements AIProvider {
 
     const result = await chat.sendMessageStream(lastUser.content);
     for await (const item of result.stream) {
-      const text = item.text();
+      const text = item.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") ?? "";
       if (text) yield { text, done: false };
     }
 
@@ -116,7 +116,7 @@ export class VertexAIProvider implements AIProvider {
     }
 
     const result = await model.generateContent(lastUser.content);
-    const text = result.response.text();
+    const text = result.response.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") ?? "";
     return JSON.parse(text) as T;
   }
 }

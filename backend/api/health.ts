@@ -42,7 +42,7 @@ export const GET = async (req: Request): Promise<Response> => {
     services: {
       supabase: { ok: dbOk, latency_ms: dbLatencyMs, error: dbError },
       sentry: { ok: Boolean(env.SENTRY_DSN_BACKEND) },
-      ai: { ok: Boolean(env.GEMINI_API_KEY), provider: "gemini", key: mask(env.GEMINI_API_KEY, 6, 4) },
+      ai: { ok: Boolean(env.GEMINI_API_KEY), provider: "gemini", key: env.GEMINI_API_KEY ? mask(env.GEMINI_API_KEY, 6, 4) : null },
     },
     timestamp: new Date().toISOString(),
   };

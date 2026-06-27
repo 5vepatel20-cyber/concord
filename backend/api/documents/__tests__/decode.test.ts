@@ -8,9 +8,9 @@ import type { AuthedUser } from "../../../_lib/auth.js";
 
 function buildSupabaseChain(result: { data: unknown; error: null | { message: string } }) {
   const single = vi.fn<() => Promise<typeof result>>().mockResolvedValue(result);
-  const select = vi.fn(() => ({ single }));
-  const insert = vi.fn(() => ({ select }));
-  const from = vi.fn(() => ({ insert }));
+  const select = vi.fn<() => { single: typeof single }>(() => ({ single }));
+  const insert = vi.fn<(...args: unknown[]) => { select: typeof select }>(() => ({ select }));
+  const from = vi.fn<() => { insert: typeof insert }>(() => ({ insert }));
   return { from, insert, select, single };
 }
 
@@ -237,7 +237,7 @@ describe("POST /api/documents/decode (auth-required)", () => {
   it("passes reading_level kid instruction to AI", async () => {
     await POST(postReq({ ocr_text: "Patient is doing well.", reading_level: "kid" }));
 
-    const callArgs = mockChatJSON.mock.calls[0]?.[0] as { messages: Array<{ content: string }> };
+    const callArgs = mockChatJSON.mock.calls[0]?.[0] as { messages: Array<{ role: string; content: string }> };
     const systemMsg = callArgs.messages.find((m) => m.role === "system")?.content ?? "";
     expect(systemMsg).toContain("10-year-old");
   });
@@ -251,7 +251,7 @@ describe("POST /api/documents/decode (auth-required)", () => {
     expect(supabaseChain.from).toHaveBeenCalledWith("document");
     expect(supabaseChain.insert).toHaveBeenCalledOnce();
 
-    const insertArgs = supabaseChain.insert.mock.calls[0]?.[0] as Record<string, unknown>;
+    const insertArgs = (supabaseChain.insert.mock.calls[0]?.[0] ?? {}) as Record<string, unknown>;
     expect(insertArgs.patient_id).toBe("user-123");
     expect(insertArgs.kind).toBe("lab_result");
     expect(insertArgs.ai_plain_summary).toBe(validExtraction.summary);

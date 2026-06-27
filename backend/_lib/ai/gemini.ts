@@ -23,6 +23,9 @@ export class GeminiProvider implements AIProvider {
 
   constructor() {
     const env = getEnv();
+    if (!env.GEMINI_API_KEY) {
+      throw new Error("GeminiProvider requires GEMINI_API_KEY env var");
+    }
     this.client = new GoogleGenerativeAI(env.GEMINI_API_KEY);
   }
 

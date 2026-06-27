@@ -154,7 +154,7 @@ describe("POST /api/documents/decode-public", () => {
   it("passes reading_level to AI provider", async () => {
     await POST(postReq({ ocr_text: "Patient is doing well.", reading_level: "kid" }));
 
-    const callArgs = mockChatJSON.mock.calls[0]?.[0] as { messages: Array<{ content: string }> };
+    const callArgs = mockChatJSON.mock.calls[0]?.[0] as { messages: Array<{ role: string; content: string }> };
     const systemMsg = callArgs.messages.find((m) => m.role === "system")?.content ?? "";
     expect(systemMsg).toContain("10-year-old");
   });
